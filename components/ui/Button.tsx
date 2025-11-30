@@ -1,70 +1,81 @@
 "use client";
 
-import { ButtonHTMLAttributes, forwardRef } from "react";
+import { ButtonHTMLAttributes } from "react";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "secondary" | "outline" | "ghost";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
   size?: "sm" | "md" | "lg";
   isLoading?: boolean;
 }
 
-const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  (
-    {
-      children,
-      variant = "primary",
-      size = "md",
-      isLoading,
-      className = "",
-      disabled,
-      ...props
-    },
-    ref
-  ) => {
-    const baseStyles =
-      "btn-hover font-semibold rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed";
+export default function Button({
+  children,
+  variant = "primary",
+  size = "md",
+  isLoading = false,
+  className = "",
+  disabled,
+  ...props
+}: ButtonProps) {
+  const baseStyles =
+    "inline-flex items-center justify-center rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-95";
 
-    const variantStyles = {
-      primary:
-        "bg-gradient-to-r from-primary-600 to-secondary-600 text-white hover:from-primary-700 hover:to-secondary-700 shadow-lg hover:shadow-xl",
-      secondary:
-        "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-600",
-      outline:
-        "border-2 border-primary-600 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20",
-      ghost:
-        "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800",
-    };
+  const variants = {
+    primary:
+      "bg-primary-600 text-white hover:bg-primary-700 hover:shadow-lg hover:shadow-primary-500/30 focus:ring-primary-500 border border-transparent",
+    secondary:
+      "bg-secondary-600 text-white hover:bg-secondary-700 hover:shadow-lg hover:shadow-secondary-500/30 focus:ring-secondary-500 border border-transparent",
+    outline:
+      "border-2 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-primary-500 hover:text-primary-600 dark:hover:text-primary-400 bg-transparent",
+    ghost:
+      "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white bg-transparent",
+    danger:
+      "bg-red-600 text-white hover:bg-red-700 hover:shadow-lg hover:shadow-red-500/30 focus:ring-red-500 border border-transparent",
+  };
 
-    const sizeStyles = {
-      sm: "px-4 py-2 text-sm",
-      md: "px-6 py-3 text-base",
-      lg: "px-8 py-4 text-lg",
-    };
+  const sizes = {
+    sm: "px-3 py-1.5 text-sm",
+    md: "px-5 py-2.5 text-base",
+    lg: "px-8 py-3.5 text-lg",
+  };
 
-    return (
-      <motion.button
-        ref={ref}
-        whileHover={{ scale: disabled || isLoading ? 1 : 1.02 }}
-        whileTap={{ scale: disabled || isLoading ? 1 : 0.98 }}
-        className={`${baseStyles} ${variantStyles[variant]} ${sizeStyles[size]} ${className}`}
-        disabled={disabled || isLoading}
-        onClick={props.onClick}
-        type={props.type}
-      >
-        {isLoading ? (
-          <div className="flex items-center justify-center gap-2">
-            <div className="spinner w-5 h-5 border-2"></div>
-            <span>Chargement...</span>
-          </div>
-        ) : (
-          children
-        )}
-      </motion.button>
-    );
-  }
-);
-
-Button.displayName = "Button";
-
-export default Button;
+  return (
+    <motion.button
+      whileTap={{ scale: 0.98 }}
+      className={cn(baseStyles, variants[variant], sizes[size], className)}
+      disabled={disabled || isLoading}
+      onClick={props.onClick}
+      type={props.type}
+    >
+      {isLoading ? (
+        <>
+          <svg
+            className="animate-spin -ml-1 mr-2 h-4 w-4 text-current"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Chargement...
+        </>
+      ) : (
+        children
+      )}
+    </motion.button>
+  );
+}

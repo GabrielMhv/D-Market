@@ -1,34 +1,35 @@
 "use client";
 
-import { HTMLAttributes, ReactNode } from "react";
-import { motion } from "framer-motion";
+import { HTMLAttributes } from "react";
+import { cn } from "@/lib/utils";
 
 interface CardProps extends HTMLAttributes<HTMLDivElement> {
-  children: ReactNode;
   hover?: boolean;
   glass?: boolean;
 }
 
 export default function Card({
   children,
+  className,
   hover = false,
   glass = false,
-  className = "",
   ...props
 }: CardProps) {
-  const baseStyles = "rounded-2xl p-6";
-  const glassStyles = glass ? "glass" : "bg-white dark:bg-gray-800 shadow-lg";
-  const hoverStyles = hover ? "card-hover cursor-pointer" : "";
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className={`${baseStyles} ${glassStyles} ${hoverStyles} ${className}`}
-      onClick={props.onClick}
+    <div
+      className={cn(
+        "rounded-2xl border transition-all duration-300",
+        glass
+          ? "bg-white/70 dark:bg-gray-900/70 backdrop-blur-lg border-white/20 shadow-xl"
+          : "bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 shadow-sm",
+        hover &&
+          "hover:shadow-xl hover:-translate-y-1 hover:border-primary-500/20",
+        "p-6",
+        className
+      )}
+      {...props}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }

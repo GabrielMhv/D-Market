@@ -2,13 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CartItem, PaymentProvider, DeliveryAddress } from "@/types";
+import { CartItem, DeliveryAddress } from "@/types";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import MobileMoneySelector from "@/components/payment/MobileMoneySelector";
-import { ShoppingBag, Truck, CreditCard, CheckCircle } from "lucide-react";
-import axios from "axios";
+import { ShoppingBag, Truck, CheckCircle } from "lucide-react";
 
 // Données de démo pour le panier
 const demoCartItems: CartItem[] = [
@@ -32,7 +30,7 @@ const demoCartItems: CartItem[] = [
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2>(1);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Formulaire de livraison
@@ -45,7 +43,6 @@ export default function CheckoutPage() {
   });
 
   const [formErrors, setFormErrors] = useState<Partial<DeliveryAddress>>({});
-  const [selectedProvider, setSelectedProvider] = useState<PaymentProvider>();
 
   // Calculs
   const subtotal = demoCartItems.reduce(
@@ -75,38 +72,25 @@ export default function CheckoutPage() {
   const handleNextStep = () => {
     if (step === 1 && validateForm()) {
       setStep(2);
-    } else if (step === 2 && selectedProvider) {
-      setStep(3);
     }
   };
 
-  // Traiter le paiement
-  const handlePayment = async () => {
-    if (!selectedProvider) return;
-
+  // Créer la commande (sans paiement pour l'instant)
+  const handleCreateOrder = async () => {
     setIsProcessing(true);
 
     try {
-      // Créer la commande dans Firestore (à implémenter)
+      // TODO: Créer la commande dans Firestore
       const orderId = `ORDER-${Date.now()}`;
 
-      // Créer la transaction FedaPay
-      const response = await axios.post("/api/payment/create-transaction", {
-        amount: total,
-        description: `Commande ${orderId}`,
-        customerEmail: "client@example.com", // À récupérer de l'auth
-        customerPhone: deliveryForm.phone,
-        customerName: deliveryForm.name,
-        orderId,
-      });
+      // Simuler la création de commande
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      if (response.data.success) {
-        // Rediriger vers la page de paiement FedaPay
-        window.location.href = response.data.checkoutUrl;
-      }
+      // Rediriger vers la page de confirmation
+      router.push(`/confirmation?orderId=${orderId}`);
     } catch (error: any) {
-      console.error("Erreur paiement:", error);
-      alert("Erreur lors du traitement du paiement. Veuillez réessayer.");
+      console.error("Erreur création commande:", error);
+      alert("Erreur lors de la création de la commande. Veuillez réessayer.");
     } finally {
       setIsProcessing(false);
     }
@@ -130,8 +114,7 @@ export default function CheckoutPage() {
           <div className="flex items-center justify-center gap-4">
             {[
               { num: 1, label: "Livraison", icon: Truck },
-              { num: 2, label: "Paiement", icon: CreditCard },
-              { num: 3, label: "Confirmation", icon: CheckCircle },
+              { num: 2, label: "Confirmation", icon: CheckCircle },
             ].map((s, index) => (
               <div key={s.num} className="flex items-center">
                 <div
@@ -149,7 +132,7 @@ export default function CheckoutPage() {
                     {s.label}
                   </span>
                 </div>
-                {index < 2 && (
+                {index < 1 && (
                   <div
                     className={`w-12 h-1 mx-2 ${
                       step > s.num
@@ -166,7 +149,6 @@ export default function CheckoutPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Formulaire */}
           <div className="lg:col-span-2">
-            {/* Étape 1 : Livraison */}
             {step === 1 && (
               <Card>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
@@ -236,53 +218,18 @@ export default function CheckoutPage() {
                     className="w-full mt-6"
                     onClick={handleNextStep}
                   >
-                    Continuer vers le paiement
+                    Continuer vers la confirmation
                   </Button>
                 </div>
               </Card>
             )}
 
-            {/* Étape 2 : Paiement */}
+            {/* Étape 2 : Confirmation */}
             {step === 2 && (
               <Card>
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-                  <CreditCard size={24} />
-                  Mode de paiement
-                </h2>
-
-                <MobileMoneySelector
-                  onSelect={setSelectedProvider}
-                  selectedProvider={selectedProvider}
-                />
-
-                <div className="flex gap-4 mt-6">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    className="flex-1"
-                    onClick={() => setStep(1)}
-                  >
-                    Retour
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="lg"
-                    className="flex-1"
-                    onClick={handleNextStep}
-                    disabled={!selectedProvider}
-                  >
-                    Continuer
-                  </Button>
-                </div>
-              </Card>
-            )}
-
-            {/* Étape 3 : Confirmation */}
-            {step === 3 && (
-              <Card>
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
                   <CheckCircle size={24} />
-                  Vérification et paiement
+                  Confirmation de la commande
                 </h2>
 
                 <div className="space-y-6">
@@ -302,15 +249,14 @@ export default function CheckoutPage() {
                     </p>
                   </div>
 
-                  {/* Résumé paiement */}
-                  <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-                      Mode de paiement
+                  {/* Note sur le paiement */}
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                      💳 Paiement
                     </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {selectedProvider === "mtn" && "MTN Mobile Money"}
-                      {selectedProvider === "moov" && "Moov Money"}
-                      {selectedProvider === "celtiis" && "Celtiis Cash"}
+                    <p className="text-sm text-blue-700 dark:text-blue-300">
+                      Le paiement sera disponible prochainement. Votre commande
+                      sera créée avec le statut "En attente".
                     </p>
                   </div>
 
@@ -319,7 +265,7 @@ export default function CheckoutPage() {
                       variant="outline"
                       size="lg"
                       className="flex-1"
-                      onClick={() => setStep(2)}
+                      onClick={() => setStep(1)}
                       disabled={isProcessing}
                     >
                       Retour
@@ -328,10 +274,10 @@ export default function CheckoutPage() {
                       variant="primary"
                       size="lg"
                       className="flex-1"
-                      onClick={handlePayment}
+                      onClick={handleCreateOrder}
                       isLoading={isProcessing}
                     >
-                      Payer {total.toLocaleString("fr-FR")} FCFA
+                      Créer la commande
                     </Button>
                   </div>
                 </div>

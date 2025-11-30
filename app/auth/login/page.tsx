@@ -22,8 +22,12 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      await signIn(email, password);
-      router.push("/compte");
+      const user = await signIn(email, password);
+      if (user.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/");
+      }
     } catch (err: any) {
       setError(err.message || "Erreur lors de la connexion");
     } finally {

@@ -119,7 +119,15 @@ export async function getUserData(uid: string): Promise<User | null> {
 /**
  * Vérifier si l'utilisateur est admin
  */
-export async function isAdmin(uid: string): Promise<boolean> {
-  const user = await getUserData(uid);
+export async function isAdmin(uid?: string): Promise<boolean> {
+  let targetUid = uid;
+
+  if (!targetUid) {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return false;
+    targetUid = currentUser.uid;
+  }
+
+  const user = await getUserData(targetUid);
   return user?.role === "admin";
 }

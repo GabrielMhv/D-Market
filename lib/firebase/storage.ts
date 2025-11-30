@@ -8,6 +8,17 @@ import {
 import { storage } from "./config";
 
 /**
+ * Sanitize filename to remove accents and special characters
+ */
+function sanitizeFilename(filename: string): string {
+  return filename
+    .normalize("NFD") // Decompose accented characters
+    .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
+    .replace(/[^a-zA-Z0-9.-]/g, "_") // Replace special chars with underscore
+    .toLowerCase();
+}
+
+/**
  * Upload une image produit
  */
 export async function uploadProductImage(
@@ -16,7 +27,8 @@ export async function uploadProductImage(
 ): Promise<string> {
   try {
     const timestamp = Date.now();
-    const fileName = `${timestamp}_${file.name}`;
+    const sanitizedName = sanitizeFilename(file.name);
+    const fileName = `${timestamp}_${sanitizedName}`;
     const storageRef = ref(storage, `products/${productId}/${fileName}`);
 
     await uploadBytes(storageRef, file);

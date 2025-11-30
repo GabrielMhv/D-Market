@@ -1,0 +1,65 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ========== HELPER FUNCTIONS ==========
+    
+    // Vérifier si l'utilisateur est authentifié
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Vérifier si l'utilisateur est admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Vérifier si le fichier est une image
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    // Vérifier la taille du fichier (max 5MB)
+    function isValidSize() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+    
+    // ========== PRODUCT IMAGES ==========
+    
+    match /products/{productId}/{imageFile} {
+      // Lecture : tout le monde
+      allow read: if true;
+      
+      // Écriture : admin uniquement
+      allow write: if isAdmin() && 
+                      isImage() && 
+                      isValidSize();
+      
+      // Suppression : admin uniquement
+      allow delete: if isAdmin();
+    }
+    
+    // ========== USER AVATARS (optionnel) ==========
+    
+    match /avatars/{userId}/{imageFile} {
+      // Lecture : tout le monde
+      allow read: if true;
+      
+      // Écriture : propriétaire uniquement
+      allow write: if isAuthenticated() && 
+                      request.auth.uid == userId && 
+                      isImage() && 
+                      isValidSize();
+      
+      // Suppression : propriétaire uniquement
+      allow delete: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ========== DEFAULT DENY ==========
+    // Tout autre chemin est interdit par défaut
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

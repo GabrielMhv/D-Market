@@ -70,7 +70,7 @@ export default function RegisterPage() {
         formData.name,
         formData.phone
       );
-      router.push("/compte");
+      router.push("/"); // Redirection vers l'accueil
     } catch (err: any) {
       setErrors({ general: err.message || "Erreur lors de l'inscription" });
     } finally {

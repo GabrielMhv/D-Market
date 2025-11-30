@@ -1,247 +1,211 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { getProducts } from "@/lib/firebase/firestore";
 import { Product } from "@/types";
-import ProductGrid from "@/components/products/ProductGrid";
-import ProductFilters, {
-  FilterOptions,
-} from "@/components/products/ProductFilters";
-import CartDrawer from "@/components/cart/CartDrawer";
-import { CartItem } from "@/types";
+import Button from "@/components/ui/Button";
+import Card from "@/components/ui/Card";
+import { FadeIn, StaggerContainer } from "@/components/ui/Motion";
+import { Filter, Search, X } from "lucide-react";
+import Input from "@/components/ui/Input";
 
-// Données de démonstration
-const demoProducts: Product[] = [
-  {
-    id: "1",
-    name: "T-Shirt Premium Coton",
-    description: "T-shirt en coton 100% biologique, coupe moderne",
-    images: [],
-    price: 8500,
-    old_price: 12000,
-    category: "hommes",
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["#000000", "#FFFFFF", "#0000FF"],
-    stock: 15,
-    isNew: true,
-    created_at: new Date(),
-    updated_at: new Date(),
-  },
-  {
-    id: "2",
-    name: "Robe Élégante",
-    description: "Robe longue élégante pour toutes occasions",
-    images: [],
-    price: 25000,
-    category: "femmes",
-    sizes: ["S", "M", "L"],
-    colors: ["#FF0000", "#000000"],
-    stock: 8,
-    created_at: new Date(),
-    updated_at: new Date(),
-  },
-  {
-    id: "3",
-    name: "Sac à Main Cuir",
-    description: "Sac à main en cuir véritable, design moderne",
-    images: [],
-    price: 35000,
-    old_price: 45000,
-    category: "accessoires",
-    sizes: [],
-    colors: ["#8B4513", "#000000"],
-    stock: 5,
-    featured: true,
-    created_at: new Date(),
-    updated_at: new Date(),
-  },
-  {
-    id: "4",
-    name: "Chemise Classique",
-    description: "Chemise classique pour homme, tissu respirant",
-    images: [],
-    price: 15000,
-    category: "hommes",
-    sizes: ["M", "L", "XL"],
-    colors: ["#FFFFFF", "#87CEEB", "#FFB6C1"],
-    stock: 20,
-    created_at: new Date(),
-    updated_at: new Date(),
-  },
-  {
-    id: "5",
-    name: "Jupe Plissée",
-    description: "Jupe plissée tendance, parfaite pour l'été",
-    images: [],
-    price: 12000,
-    category: "femmes",
-    sizes: ["S", "M", "L"],
-    colors: ["#FF69B4", "#000000", "#FFFFFF"],
-    stock: 0,
-    created_at: new Date(),
-    updated_at: new Date(),
-  },
-  {
-    id: "6",
-    name: "Montre Élégante",
-    description: "Montre élégante avec bracelet en cuir",
-    images: [],
-    price: 45000,
-    category: "accessoires",
-    sizes: [],
-    colors: ["#C0C0C0", "#FFD700"],
-    stock: 12,
-    isNew: true,
-    created_at: new Date(),
-    updated_at: new Date(),
-  },
-];
+export default function ShopPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterCategory, setFilterCategory] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
 
-export default function BoutiquePage() {
-  const [filteredProducts, setFilteredProducts] =
-    useState<Product[]>(demoProducts);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-
-  const handleFilterChange = (filters: FilterOptions) => {
-    let filtered = [...demoProducts];
-
-    // Filter by category
-    if (filters.category) {
-      filtered = filtered.filter((p) => p.category === filters.category);
+  useEffect(() => {
+    async function fetchProducts() {
+      const data = await getProducts();
+      setProducts(data);
+      setLoading(false);
     }
+    fetchProducts();
+  }, []);
 
-    // Filter by price
-    if (filters.minPrice !== undefined) {
-      filtered = filtered.filter((p) => p.price >= filters.minPrice!);
-    }
-    if (filters.maxPrice !== undefined) {
-      filtered = filtered.filter((p) => p.price <= filters.maxPrice!);
-    }
+  const filteredProducts = products.filter((product) => {
+    const matchesCategory = filterCategory
+      ? product.category === filterCategory
+      : true;
+    const matchesSearch = product.name
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
-    // Filter by sizes
-    if (filters.sizes && filters.sizes.length > 0) {
-      filtered = filtered.filter((p) =>
-        p.sizes.some((size) => filters.sizes!.includes(size))
-      );
-    }
-
-    // Filter by colors
-    if (filters.colors && filters.colors.length > 0) {
-      filtered = filtered.filter((p) =>
-        p.colors.some((color) => filters.colors!.includes(color))
-      );
-    }
-
-    // Sort
-    if (filters.sortBy) {
-      switch (filters.sortBy) {
-        case "price-asc":
-          filtered.sort((a, b) => a.price - b.price);
-          break;
-        case "price-desc":
-          filtered.sort((a, b) => b.price - a.price);
-          break;
-        case "newest":
-          filtered.sort(
-            (a, b) => b.created_at.getTime() - a.created_at.getTime()
-          );
-          break;
-      }
-    }
-
-    setFilteredProducts(filtered);
-  };
-
-  const handleAddToCart = (product: Product) => {
-    const existingItem = cartItems.find(
-      (item) => item.product_id === product.id
-    );
-
-    if (existingItem) {
-      setCartItems(
-        cartItems.map((item) =>
-          item.product_id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        )
-      );
-    } else {
-      const newItem: CartItem = {
-        product_id: product.id,
-        product_name: product.name,
-        product_image: product.images[0] || "",
-        quantity: 1,
-        price: product.price,
-      };
-      setCartItems([...cartItems, newItem]);
-    }
-
-    setIsCartOpen(true);
-  };
-
-  const handleUpdateQuantity = (productId: string, quantity: number) => {
-    setCartItems(
-      cartItems.map((item) =>
-        item.product_id === productId ? { ...item, quantity } : item
-      )
-    );
-  };
-
-  const handleRemoveItem = (productId: string) => {
-    setCartItems(cartItems.filter((item) => item.product_id !== productId));
-  };
+  const categories = ["hommes", "femmes", "accessoires"];
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
       <div className="container mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-2">
-            Boutique
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Découvrez notre collection de vêtements et accessoires
-          </p>
+        <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+          <div>
+            <h1 className="text-4xl font-display font-bold text-gray-900 dark:text-white mb-2">
+              Boutique
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400">
+              Découvrez nos dernières collections
+            </p>
+          </div>
+          <div className="flex gap-2 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={20}
+              />
+              <input
+                type="text"
+                placeholder="Rechercher..."
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary-500 focus:outline-none"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+            <Button
+              variant="outline"
+              className="md:hidden"
+              onClick={() => setShowFilters(!showFilters)}
+            >
+              <Filter size={20} />
+            </Button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Filters Sidebar */}
-          <div className="lg:col-span-1">
-            <ProductFilters onFilterChange={handleFilterChange} />
-          </div>
-
-          {/* Products Grid */}
-          <div className="lg:col-span-3">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                {filteredProducts.length} produit
-                {filteredProducts.length > 1 ? "s" : ""} trouvé
-                {filteredProducts.length > 1 ? "s" : ""}
-              </p>
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="lg:hidden px-4 py-2 bg-primary-600 text-white rounded-lg"
-              >
-                Panier ({cartItems.length})
+        {/* Mobile Filters */}
+        {showFilters && (
+          <div className="md:hidden mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold">Filtres</h3>
+              <button onClick={() => setShowFilters(false)}>
+                <X size={20} />
               </button>
             </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setFilterCategory(null)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  filterCategory === null
+                    ? "bg-primary-600 text-white"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                }`}
+              >
+                Tout
+              </button>
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setFilterCategory(cat)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium capitalize transition-colors ${
+                    filterCategory === cat
+                      ? "bg-primary-600 text-white"
+                      : "bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
-            <ProductGrid
-              products={filteredProducts}
-              onAddToCart={handleAddToCart}
-            />
+        <div className="flex gap-8">
+          {/* Desktop Sidebar */}
+          <aside className="hidden md:block w-64 shrink-0 space-y-8">
+            <div>
+              <h3 className="font-bold text-lg mb-4">Catégories</h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => setFilterCategory(null)}
+                  className={`block w-full text-left px-4 py-2 rounded-lg transition-colors ${
+                    filterCategory === null
+                      ? "bg-primary-50 text-primary-600 font-medium"
+                      : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
+                  }`}
+                >
+                  Tout voir
+                </button>
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setFilterCategory(cat)}
+                    className={`block w-full text-left px-4 py-2 rounded-lg capitalize transition-colors ${
+                      filterCategory === cat
+                        ? "bg-primary-50 text-primary-600 font-medium"
+                        : "text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </aside>
+
+          {/* Product Grid */}
+          <div className="flex-1">
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    className="aspect-[3/4] bg-gray-200 dark:bg-gray-800 rounded-2xl animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="text-center py-20">
+                <p className="text-gray-500 text-lg">Aucun produit trouvé.</p>
+              </div>
+            ) : (
+              <StaggerContainer className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProducts.map((product) => (
+                  <FadeIn key={product.id}>
+                    <Link href={`/produit/${product.id}`}>
+                      <Card
+                        hover
+                        className="h-full p-4 group transition-all duration-300"
+                      >
+                        <div className="relative aspect-[3/4] mb-4 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800">
+                          {product.images?.[0] ? (
+                            <img
+                              src={product.images[0]}
+                              alt={product.name}
+                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400">
+                              No Image
+                            </div>
+                          )}
+                          {product.isNew && (
+                            <span className="absolute top-2 left-2 px-2 py-1 bg-white/90 backdrop-blur text-xs font-bold rounded-md shadow-sm">
+                              NOUVEAU
+                            </span>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500 capitalize mb-1">
+                            {product.category}
+                          </p>
+                          <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 line-clamp-1">
+                            {product.name}
+                          </h3>
+                          <p className="text-primary-600 font-bold text-xl">
+                            {product.price.toLocaleString("fr-FR")} FCFA
+                          </p>
+                        </div>
+                      </Card>
+                    </Link>
+                  </FadeIn>
+                ))}
+              </StaggerContainer>
+            )}
           </div>
         </div>
       </div>
-
-      {/* Cart Drawer */}
-      <CartDrawer
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        items={cartItems}
-        onUpdateQuantity={handleUpdateQuantity}
-        onRemove={handleRemoveItem}
-      />
     </main>
   );
 }

@@ -13,7 +13,29 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "./config";
-import { Product, Order, Cart, Coupon } from "@/types";
+import { Product, Order, Cart, Coupon, User } from "@/types";
+
+// ========== UTILISATEURS ==========
+
+/**
+ * Récupérer tous les utilisateurs (Admin)
+ */
+export async function getAllUsers(): Promise<User[]> {
+  try {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, orderBy("created_at", "desc"));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      created_at: doc.data().created_at?.toDate(),
+    })) as User[];
+  } catch (error) {
+    console.error("Erreur lors de la récupération des utilisateurs:", error);
+    return [];
+  }
+}
 
 // ========== PRODUITS ==========
 
@@ -184,6 +206,50 @@ export async function createOrder(order: Omit<Order, "id">): Promise<string> {
   } catch (error) {
     console.error("Erreur lors de la création de la commande:", error);
     throw error;
+  }
+}
+
+/**
+ * Récupérer toutes les commandes (Admin)
+ */
+export async function getAllOrders(): Promise<Order[]> {
+  try {
+    const ordersRef = collection(db, "orders");
+    const q = query(ordersRef, orderBy("created_at", "desc"));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      created_at: doc.data().created_at?.toDate(),
+      updated_at: doc.data().updated_at?.toDate(),
+    })) as Order[];
+  } catch (error) {
+    console.error("Erreur lors de la récupération des commandes:", error);
+    return [];
+  }
+}
+
+/**
+ * Récupérer une commande par ID
+ */
+export async function getOrderById(id: string): Promise<Order | null> {
+  try {
+    const orderDoc = await getDoc(doc(db, "orders", id));
+
+    if (!orderDoc.exists()) {
+      return null;
+    }
+
+    return {
+      id: orderDoc.id,
+      ...orderDoc.data(),
+      created_at: orderDoc.data().created_at?.toDate(),
+      updated_at: orderDoc.data().updated_at?.toDate(),
+    } as Order;
+  } catch (error) {
+    console.error("Erreur lors de la récupération de la commande:", error);
+    return null;
   }
 }
 
