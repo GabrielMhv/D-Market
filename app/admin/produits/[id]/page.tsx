@@ -8,7 +8,7 @@ import {
   addProduct,
   updateProduct,
 } from "@/lib/firebase/firestore";
-import { uploadProductImages } from "@/lib/firebase/storage";
+import { uploadImagesToCloudinary } from "@/lib/cloudinary/upload";
 import { Product } from "@/types";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -109,10 +109,9 @@ export default function ProductFormPage({
     try {
       let imageUrls = [...(formData.images || [])];
 
-      // Upload new images
+      // Upload new images to Cloudinary
       if (newImages.length > 0) {
-        const tempId = isNew ? `temp_${Date.now()}` : params.id;
-        const uploadedUrls = await uploadProductImages(newImages, tempId);
+        const uploadedUrls = await uploadImagesToCloudinary(newImages);
         imageUrls = [...imageUrls, ...uploadedUrls];
       }
 

@@ -7,7 +7,9 @@ import { signIn } from "@/lib/firebase/auth";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import { LogIn, Mail, Lock } from "lucide-react";
+import { FadeIn } from "@/components/ui/Motion";
+import { LogIn, Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,39 +38,86 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900 dark:to-blue-900 flex items-center justify-center py-12 px-4">
-      <div className="w-full max-w-md">
+    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900/20 dark:to-blue-900/20 flex items-center justify-center py-12 px-4 relative overflow-hidden">
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            rotate: [0, 90, 0],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          className="absolute top-1/4 -left-1/4 w-96 h-96 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-3xl"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.3, 1],
+            rotate: [0, -90, 0],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-gradient-to-br from-pink-400/20 to-purple-400/20 rounded-full blur-3xl"
+        />
+      </div>
+
+      <FadeIn className="w-full max-w-md relative z-10">
         {/* Logo/Title */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-display font-bold gradient-text mb-2">
-            E-Shop
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
+            className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl mb-4 shadow-lg"
+          >
+            <Sparkles className="text-white" size={32} />
+          </motion.div>
+          <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-gray-900 via-purple-900 to-blue-900 dark:from-white dark:via-purple-200 dark:to-blue-200 bg-clip-text text-transparent mb-2">
+            Bon retour !
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Connectez-vous à votre compte
+            Connectez-vous pour continuer
           </p>
         </div>
 
         {/* Login Card */}
-        <Card className="glass">
-          <div className="flex items-center gap-2 mb-6">
-            <LogIn
-              className="text-primary-600 dark:text-primary-400"
-              size={24}
-            />
+        <Card className="backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border-white/20 shadow-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-primary-100 dark:bg-primary-900/30 rounded-lg">
+              <LogIn
+                className="text-primary-600 dark:text-primary-400"
+                size={24}
+              />
+            </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
               Connexion
             </h2>
           </div>
 
           {/* Error Message */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            </div>
-          )}
+          <AnimatePresence>
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
+              >
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {error}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <Input
               label="Email"
               type="email"
@@ -91,7 +140,7 @@ export default function LoginPage() {
             <div className="text-right">
               <Link
                 href="/auth/forgot-password"
-                className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                className="text-sm text-primary-600 dark:text-primary-400 hover:underline font-medium"
               >
                 Mot de passe oublié ?
               </Link>
@@ -100,23 +149,25 @@ export default function LoginPage() {
             {/* Submit Button */}
             <Button
               type="submit"
-              variant="primary"
-              size="lg"
-              className="w-full gap-2"
+              className="w-full gap-2 group"
               isLoading={isLoading}
+              size="lg"
             >
-              <LogIn size={20} />
-              Se connecter
+              <span>Se connecter</span>
+              <ArrowRight
+                size={20}
+                className="group-hover:translate-x-1 transition-transform"
+              />
             </Button>
           </form>
 
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+              <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
+              <span className="px-4 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
                 Pas encore de compte ?
               </span>
             </div>
@@ -124,7 +175,7 @@ export default function LoginPage() {
 
           {/* Register Link */}
           <Link href="/auth/register">
-            <Button variant="outline" size="lg" className="w-full">
+            <Button variant="outline" className="w-full" size="lg">
               Créer un compte
             </Button>
           </Link>
@@ -134,12 +185,12 @@ export default function LoginPage() {
         <div className="text-center mt-6">
           <Link
             href="/"
-            className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+            className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
           >
             ← Retour à l'accueil
           </Link>
         </div>
-      </div>
+      </FadeIn>
     </main>
   );
 }
