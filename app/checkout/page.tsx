@@ -3,7 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/lib/context/CartContext";
-import { createOrder } from "@/lib/firebase/firestore";
+import {
+  createOrder,
+  validateCoupon,
+  incrementCouponUsage,
+} from "@/lib/firebase/firestore";
 import { getCurrentUser } from "@/lib/firebase/auth";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -15,9 +19,10 @@ import {
   CreditCard,
   Package,
   CheckCircle,
+  Tag,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import { DeliveryAddress } from "@/types";
+import { DeliveryAddress, Coupon } from "@/types";
 
 export default function CheckoutPage() {
   const router = useRouter();
