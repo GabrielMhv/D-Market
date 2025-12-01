@@ -274,6 +274,66 @@ export async function getOrderById(id: string): Promise<Order | null> {
 }
 
 /**
+ * Mettre à jour le statut d'une commande
+ */
+export async function updateOrderStatus(
+  orderId: string,
+  newStatus: Order["status"]
+): Promise<void> {
+  try {
+    const orderRef = doc(db, "orders", orderId);
+    await updateDoc(orderRef, {
+      status: newStatus,
+      updated_at: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour du statut:", error);
+    throw error;
+  }
+}
+
+/**
+ * Annuler une commande et restaurer le stock
+ */
+export async function cancelOrder(orderId: string): Promise<void> {
+  try {
+    // Récupérer la commande
+    const orderDoc = await getDoc(doc(db, "orders", orderId));
+
+    if (!orderDoc.exists()) {
+      throw new Error("Commande introuvable");
+    }
+
+    const orderData = orderDoc.data() as Order;
+
+    // Restaurer le stock pour chaque produit
+    for (const item of orderData.products) {
+      const productRef = doc(db, "products", item.product_id);
+      const productDoc = await getDoc(productRef);
+
+      if (productDoc.exists()) {
+        const currentStock = productDoc.data().stock || 0;
+        const newStock = currentStock + item.quantity;
+
+        await updateDoc(productRef, {
+          stock: newStock,
+          updated_at: Timestamp.now(),
+        });
+      }
+    }
+
+    // Mettre à jour le statut de la commande
+    await updateDoc(doc(db, "orders", orderId), {
+      status: "cancelled",
+      updated_at: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error("Erreur lors de l'annulation de la commande:", error);
+    throw error;
+  }
+}
+
+/**
  * Récupérer les commandes d'un utilisateur
  */
 export async function getUserOrders(userId: string): Promise<Order[]> {
@@ -323,25 +383,6 @@ export async function getOrdersByUser(userId: string): Promise<Order[]> {
       error
     );
     return [];
-  }
-}
-
-/**
- * Mettre à jour le statut d'une commande (Admin)
- */
-export async function updateOrderStatus(
-  orderId: string,
-  status: Order["status"]
-): Promise<void> {
-  try {
-    const orderRef = doc(db, "orders", orderId);
-    await updateDoc(orderRef, {
-      status,
-      updated_at: Timestamp.now(),
-    });
-  } catch (error) {
-    console.error("Erreur lors de la mise à jour du statut:", error);
-    throw error;
   }
 }
 
@@ -498,6 +539,74 @@ export async function setDefaultAddress(
       "Erreur lors de la mise à jour de l'adresse par défaut:",
       error
     );
+    throw error;
+  }
+}
+
+// ========== COUPONS ==========
+
+/**
+ * Valider et récupérer un coupon par son code
+ */
+export async function validateCoupon(code: string): Promise<Coupon | null> {
+  try {
+    const couponsRef = collection(db, "coupons");
+    const q = query(couponsRef, where("code", "==", code.toUpperCase()));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const couponData = snapshot.docs[0].data();
+    const coupon = {
+      id: snapshot.docs[0].id,
+      ...couponData,
+      expiration:
+        couponData.expiration?.toDate() || couponData.expiresAt?.toDate(),
+      usage_limit: couponData.usage_limit || couponData.usageLimit,
+      used_count: couponData.used_count || couponData.usedCount || 0,
+    } as Coupon;
+
+    // Vérifier si le coupon est actif
+    if (!coupon.active) {
+      return null;
+    }
+
+    // Vérifier si le coupon n'a pas expiré
+    if (coupon.expiration && coupon.expiration < new Date()) {
+      return null;
+    }
+
+    // Vérifier si le coupon n'a pas atteint sa limite d'utilisation
+    if (coupon.usage_limit && coupon.used_count >= coupon.usage_limit) {
+      return null;
+    }
+
+    return coupon;
+  } catch (error) {
+    console.error("Erreur lors de la validation du coupon:", error);
+    return null;
+  }
+}
+
+/**
+ * Incrémenter le compteur d'utilisation d'un coupon
+ */
+export async function incrementCouponUsage(couponId: string): Promise<void> {
+  try {
+    const couponRef = doc(db, "coupons", couponId);
+    const couponDoc = await getDoc(couponRef);
+
+    if (couponDoc.exists()) {
+      const currentCount =
+        couponDoc.data().used_count || couponDoc.data().usedCount || 0;
+      await updateDoc(couponRef, {
+        used_count: currentCount + 1,
+      });
+    }
+  } catch (error) {
+    console.error("Erreur lors de l'incrémentation du coupon:", error);
     throw error;
   }
 }
