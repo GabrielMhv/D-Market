@@ -40,8 +40,32 @@ export default function ProductPage() {
 
   const handleAddToCart = () => {
     if (!product) return;
-    addToCart(product, quantity, selectedSize);
-    toast.success("Ajouté au panier !");
+
+    // Stock validation
+    if (product.stock < quantity) {
+      toast.error(
+        `Stock insuffisant ! Seulement ${product.stock} disponible(s)`
+      );
+      return;
+    }
+
+    if (product.stock === 0) {
+      toast.error("Produit en rupture de stock");
+      return;
+    }
+
+    // Add to cart with new API
+    const cartItem = {
+      product_id: product.id,
+      product_name: product.name,
+      product_image: product.images[0] || "",
+      quantity,
+      size: selectedSize,
+      price: product.price,
+    };
+
+    addToCart(cartItem);
+    // Toast is already shown by CartContext
   };
 
   if (loading) {
@@ -123,6 +147,23 @@ export default function ProductPage() {
               <p>{product.description}</p>
             </div>
 
+            {/* Stock Status */}
+            <div className="flex items-center gap-2">
+              {product.stock > 10 ? (
+                <span className="px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-sm font-medium">
+                  ✓ En stock ({product.stock} disponibles)
+                </span>
+              ) : product.stock > 0 ? (
+                <span className="px-3 py-1 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 rounded-full text-sm font-medium">
+                  ⚠️ Stock limité ({product.stock} restants)
+                </span>
+              ) : (
+                <span className="px-3 py-1 bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 rounded-full text-sm font-medium">
+                  ✗ Rupture de stock
+                </span>
+              )}
+            </div>
+
             {/* Size Selector */}
             {product.sizes && product.sizes.length > 0 && (
               <div>
@@ -161,7 +202,8 @@ export default function ProductPage() {
                 </span>
                 <button
                   onClick={() => setQuantity(quantity + 1)}
-                  className="p-3 hover:text-primary-600 transition-colors"
+                  disabled={quantity >= product.stock}
+                  className="p-3 hover:text-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus size={20} />
                 </button>
@@ -170,9 +212,10 @@ export default function ProductPage() {
                 size="lg"
                 className="flex-1 gap-2 rounded-xl"
                 onClick={handleAddToCart}
+                disabled={product.stock === 0}
               >
                 <ShoppingBag size={20} />
-                Ajouter au panier
+                {product.stock === 0 ? "Rupture de stock" : "Ajouter au panier"}
               </Button>
             </div>
 

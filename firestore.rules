@@ -1,65 +1,66 @@
 rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    
-    // ========== HELPER FUNCTIONS ==========
-    
-    // Vérifier si l'utilisateur est authentifié
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
     
-    // Vérifier si l'utilisateur est admin
     function isAdmin() {
       return isAuthenticated() && 
-             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // Vérifier si le fichier est une image
-    function isImage() {
-      return request.resource.contentType.matches('image/.*');
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
-    
-    // Vérifier la taille du fichier (max 5MB)
-    function isValidSize() {
-      return request.resource.size < 5 * 1024 * 1024;
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+      
+      // Addresses subcollection
+      match /addresses/{addressId} {
+        allow read, write: if isOwner(userId);
+      }
     }
-    
-    // ========== PRODUCT IMAGES ==========
-    
-    match /products/{productId}/{imageFile} {
-      // Lecture : tout le monde
+
+    // Products collection
+    match /products/{productId} {
       allow read: if true;
-      
-      // Écriture : admin uniquement
-      allow write: if isAdmin() && 
-                      isImage() && 
-                      isValidSize();
-      
-      // Suppression : admin uniquement
+      // Allow admins to write
+      allow write: if isAdmin();
+      // Allow authenticated users to update stock (for orders)
+      allow update: if isAuthenticated() && (isAdmin() || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'updated_at']));
+    }
+
+    // Orders collection
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && (resource.data.user_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
     
-    // ========== USER AVATARS (optionnel) ==========
-    
-    match /avatars/{userId}/{imageFile} {
-      // Lecture : tout le monde
+    // Coupons collection
+    match /coupons/{couponId} {
       allow read: if true;
-      
-      // Écriture : propriétaire uniquement
-      allow write: if isAuthenticated() && 
-                      request.auth.uid == userId && 
-                      isImage() && 
-                      isValidSize();
-      
-      // Suppression : propriétaire uniquement
-      allow delete: if isAuthenticated() && request.auth.uid == userId;
+      allow write: if isAdmin();
     }
     
-    // ========== DEFAULT DENY ==========
-    // Tout autre chemin est interdit par défaut
-    match /{allPaths=**} {
-      allow read, write: if false;
+    // Carts collection
+    match /carts/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Settings collection
+    match /settings/{document} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

@@ -3,191 +3,296 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { auth } from "@/lib/firebase/config";
-import { getUserData, logout } from "@/lib/firebase/auth";
-import { getUserOrders } from "@/lib/firebase/firestore";
-import { User, Order } from "@/types";
+import { getCurrentUser, getUserData } from "@/lib/firebase/auth";
+import { getOrdersByUser, getUserAddresses } from "@/lib/firebase/firestore";
+import { Order } from "@/types";
 import Card from "@/components/ui/Card";
 import Button from "@/components/ui/Button";
-import Badge from "@/components/ui/Badge";
-import { User as UserIcon, Package, LogOut, MapPin } from "lucide-react";
+import StatusBadge from "@/components/ui/StatusBadge";
+import { FadeIn, StaggerContainer } from "@/components/ui/Motion";
+import {
+  User,
+  Package,
+  ShoppingBag,
+  MapPin,
+  Mail,
+  Phone,
+  Calendar,
+  TrendingUp,
+  Edit,
+} from "lucide-react";
+import { motion } from "framer-motion";
 
-export default function AccountPage() {
+export default function ComptePage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [user, setUser] = useState<any>(null);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [defaultAddress, setDefaultAddress] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          const userData = await getUserData(firebaseUser.uid);
-          setUser(userData);
-          const orders = await getUserOrders(firebaseUser.uid);
-          setRecentOrders(orders.slice(0, 3)); // Get last 3 orders
-        } catch (error) {
-          console.error("Erreur chargement données:", error);
-        }
-      } else {
+    async function loadUserData() {
+      const currentUser = await getCurrentUser();
+      if (!currentUser) {
         router.push("/auth/login");
+        return;
       }
+
+      // Get Firestore user data
+      const firestoreUser = await getUserData(currentUser.uid);
+
+      // Merge Firebase Auth user with Firestore data
+      setUser({
+        ...currentUser,
+        ...firestoreUser,
+      });
+
+      // Get user orders
+      const userOrders = await getOrdersByUser(currentUser.uid);
+      setOrders(userOrders);
+
+      // Get user addresses
+      const addresses = await getUserAddresses(currentUser.uid);
+      const defaultAddr = addresses.find((addr) => addr.isDefault);
+      setDefaultAddress(defaultAddr || null);
+
       setLoading(false);
-    });
+    }
 
-    return () => unsubscribe();
+    loadUserData();
   }, [router]);
-
-  const handleLogout = async () => {
-    try {
-      await logout();
-      router.push("/auth/login");
-    } catch (error) {
-      console.error("Erreur déconnexion:", error);
-    }
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
-        return <Badge variant="warning">En attente</Badge>;
-      case "processing":
-        return <Badge variant="info">En traitement</Badge>;
-      case "shipped":
-        return <Badge variant="primary">Expédiée</Badge>;
-      case "delivered":
-        return <Badge variant="success">Livrée</Badge>;
-      case "cancelled":
-        return <Badge variant="danger">Annulée</Badge>;
-      default:
-        return <Badge variant="secondary">{status}</Badge>;
-    }
-  };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="spinner w-16 h-16 border-4"></div>
+        <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
       </div>
     );
   }
 
-  if (!user) return null;
+  const totalSpent = orders.reduce((sum, order) => sum + order.total, 0);
+  const completedOrders = orders.filter((o) => o.status === "delivered").length;
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return (
+          <StatusBadge variant="warning" pulse>
+            En attente
+          </StatusBadge>
+        );
+      case "processing":
+        return <StatusBadge variant="info">En traitement</StatusBadge>;
+      case "shipped":
+        return <StatusBadge variant="primary">Expédiée</StatusBadge>;
+      case "delivered":
+        return <StatusBadge variant="success">Livrée</StatusBadge>;
+      case "cancelled":
+        return <StatusBadge variant="danger">Annulée</StatusBadge>;
+      default:
+        return <StatusBadge variant="secondary">{status}</StatusBadge>;
+    }
+  };
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12">
-      <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-display font-bold text-gray-900 dark:text-white mb-2">
-              Mon Compte
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400">
-              Bienvenue, {user.name}
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-            onClick={handleLogout}
-          >
-            <LogOut size={20} className="mr-2" />
-            Déconnexion
-          </Button>
-        </div>
+    <main className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-50 to-gray-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 py-12">
+      <div className="container mx-auto px-4 max-w-6xl">
+        {/* Header */}
+        <FadeIn className="mb-8">
+          <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent mb-2">
+            Mon Compte
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Gérez vos informations et suivez vos commandes
+          </p>
+        </FadeIn>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Sidebar Navigation */}
-          <div className="space-y-4">
-            <Link href="/compte">
-              <Card className="flex items-center gap-3 p-4 border-l-4 border-primary-600 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                <UserIcon className="text-primary-600" size={24} />
-                <span className="font-medium">Vue d'ensemble</span>
-              </Card>
-            </Link>
-            <Link href="/compte/commandes">
-              <Card className="flex items-center gap-3 p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                <Package className="text-gray-500" size={24} />
-                <span className="font-medium">Mes Commandes</span>
-              </Card>
-            </Link>
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Sidebar - User Info */}
+          <div className="space-y-6">
+            <FadeIn delay={0.1}>
+              <Card className="backdrop-blur-xl bg-white/80 dark:bg-gray-900/80">
+                <div className="text-center">
+                  <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white text-3xl font-bold">
+                    {(user?.name || user?.displayName || "U")
+                      .charAt(0)
+                      .toUpperCase()}
+                  </div>
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">
+                    {user?.name || user?.displayName || "Utilisateur"}
+                  </h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    {user?.email}
+                  </p>
 
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Profile Info */}
-            <Card>
-              <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
-                <UserIcon size={20} />
-                Informations personnelles
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Nom complet</p>
-                  <p className="font-medium">{user.name}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Email</p>
-                  <p className="font-medium">{user.email}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">Téléphone</p>
-                  <p className="font-medium">{user.phone || "-"}</p>
-                </div>
-              </div>
-            </Card>
-
-            {/* Recent Orders */}
-            <Card>
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <Package size={20} />
-                  Commandes récentes
-                </h2>
-                <Link
-                  href="/compte/commandes"
-                  className="text-primary-600 hover:underline text-sm"
-                >
-                  Voir tout
-                </Link>
-              </div>
-
-              {recentOrders.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  Vous n'avez pas encore passé de commande.
-                  <div className="mt-4">
-                    <Link href="/boutique">
-                      <Button>Commencer mes achats</Button>
-                    </Link>
+                  <div className="space-y-3 text-left">
+                    <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
+                      <Mail size={16} />
+                      <span>{user?.email}</span>
+                    </div>
+                    {(user?.phone || user?.phoneNumber) && (
+                      <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
+                        <Phone size={16} />
+                        <span>{user.phone || user.phoneNumber}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
+                      <Calendar size={16} />
+                      <span>
+                        Membre depuis{" "}
+                        {user?.metadata?.creationTime
+                          ? new Date(
+                              user.metadata.creationTime
+                            ).toLocaleDateString("fr-FR")
+                          : "N/A"}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  {recentOrders.map((order) => (
-                    <div
-                      key={order.id}
-                      className="flex items-center justify-between p-4 border border-gray-100 dark:border-gray-800 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                    >
-                      <div>
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          Commande #{order.id}
-                        </p>
-                        <p className="text-sm text-gray-500">
-                          {order.created_at?.toLocaleDateString()} •{" "}
-                          {order.products.length} article(s)
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-gray-900 dark:text-white mb-1">
-                          {order.total.toLocaleString("fr-FR")} FCFA
-                        </p>
-                        {getStatusBadge(order.status)}
-                      </div>
-                    </div>
-                  ))}
+              </Card>
+            </FadeIn>
+
+            {/* Stats Cards */}
+            <FadeIn delay={0.2}>
+              <Card className="backdrop-blur-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white/20 rounded-xl">
+                    <ShoppingBag size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm opacity-90">Total Commandes</p>
+                    <p className="text-2xl font-bold">{orders.length}</p>
+                  </div>
                 </div>
-              )}
-            </Card>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={0.3}>
+              <Card className="backdrop-blur-xl bg-gradient-to-br from-green-500 to-green-600 text-white">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-white/20 rounded-xl">
+                    <TrendingUp size={24} />
+                  </div>
+                  <div>
+                    <p className="text-sm opacity-90">Total Dépensé</p>
+                    <p className="text-2xl font-bold">
+                      {totalSpent.toLocaleString("fr-FR")} FCFA
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </FadeIn>
+
+            {/* Default Address */}
+            <FadeIn delay={0.35}>
+              <Card className="backdrop-blur-xl bg-white/80 dark:bg-gray-900/80">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <MapPin size={18} className="text-primary-600" />
+                    Adresse par défaut
+                  </h3>
+                  <Link href="/compte/adresses">
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      <Edit size={14} />
+                    </Button>
+                  </Link>
+                </div>
+                {defaultAddress ? (
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="font-medium text-gray-900 dark:text-white mb-1">
+                      {defaultAddress.name}
+                    </p>
+                    <p>{defaultAddress.address}</p>
+                    <p>
+                      {defaultAddress.city}, {defaultAddress.country}
+                    </p>
+                    <p className="mt-1">{defaultAddress.phone}</p>
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-sm text-gray-500 mb-3">
+                      Aucune adresse par défaut
+                    </p>
+                    <Link href="/compte/adresses">
+                      <Button size="sm" variant="outline" className="w-full">
+                        Ajouter une adresse
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </Card>
+            </FadeIn>
+          </div>
+
+          {/* Main Content - Orders */}
+          <div className="lg:col-span-2 space-y-6">
+            <FadeIn delay={0.4}>
+              <Card className="backdrop-blur-xl bg-white/80 dark:bg-gray-900/80">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+                  <Package className="text-primary-600" size={24} />
+                  Mes Commandes
+                </h2>
+
+                {orders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <ShoppingBag
+                      size={64}
+                      className="mx-auto text-gray-300 dark:text-gray-600 mb-4"
+                    />
+                    <p className="text-gray-500 dark:text-gray-400 mb-4">
+                      Vous n'avez pas encore passé de commande
+                    </p>
+                    <Link href="/boutique">
+                      <button className="px-6 py-3 bg-primary-600 text-white rounded-xl hover:bg-primary-700 transition-colors">
+                        Découvrir la boutique
+                      </button>
+                    </Link>
+                  </div>
+                ) : (
+                  <StaggerContainer className="space-y-4">
+                    {orders.map((order, index) => (
+                      <motion.div
+                        key={order.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                      >
+                        <Link href={`/compte/commandes/${order.id}`}>
+                          <Card className="hover:shadow-lg transition-all cursor-pointer border-2 border-transparent hover:border-primary-200 dark:hover:border-primary-800">
+                            <div className="flex items-center justify-between mb-4">
+                              <div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                  Commande #{order.id.slice(0, 8)}
+                                </p>
+                                <p className="text-xs text-gray-400 dark:text-gray-500">
+                                  {order.created_at?.toLocaleDateString(
+                                    "fr-FR"
+                                  )}
+                                </p>
+                              </div>
+                              {getStatusBadge(order.status)}
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Package size={16} className="text-gray-400" />
+                                <span className="text-sm text-gray-600 dark:text-gray-400">
+                                  {order.products.length} article
+                                  {order.products.length > 1 ? "s" : ""}
+                                </span>
+                              </div>
+                              <p className="font-bold text-primary-600 dark:text-primary-400">
+                                {order.total.toLocaleString("fr-FR")} FCFA
+                              </p>
+                            </div>
+                          </Card>
+                        </Link>
+                      </motion.div>
+                    ))}
+                  </StaggerContainer>
+                )}
+              </Card>
+            </FadeIn>
           </div>
         </div>
       </div>

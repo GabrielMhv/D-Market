@@ -32,20 +32,20 @@ export default function CGVPage() {
           <p>
             L'acheteur, qui souhaite acheter un produit ou un service doit
             obligatoirement :
-            <ul>
-              <li>
-                Remplir la fiche d'identification sur laquelle il indiquera
-                toutes les coordonnées demandées;
-              </li>
-              <li>
-                Remplir le bon de commande en ligne en donnant toutes les
-                références des produits ou services choisis;
-              </li>
-              <li>Valider sa commande après l'avoir vérifiée;</li>
-              <li>Effectuer le paiement dans les conditions prévues;</li>
-              <li>Confirmer sa commande et son règlement.</li>
-            </ul>
           </p>
+          <ul>
+            <li>
+              Remplir la fiche d'identification sur laquelle il indiquera toutes
+              les coordonnées demandées;
+            </li>
+            <li>
+              Remplir le bon de commande en ligne en donnant toutes les
+              références des produits ou services choisis;
+            </li>
+            <li>Valider sa commande après l'avoir vérifiée;</li>
+            <li>Effectuer le paiement dans les conditions prévues;</li>
+            <li>Confirmer sa commande et son règlement.</li>
+          </ul>
 
           <h2>5. Livraison</h2>
           <p>

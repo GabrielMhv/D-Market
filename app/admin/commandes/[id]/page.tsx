@@ -244,22 +244,30 @@ export default function AdminOrderDetailsPage({
                 <div className="space-y-2 pt-4 border-t-2 border-gray-200 dark:border-gray-700">
                   <div className="flex justify-between text-gray-600 dark:text-gray-400">
                     <span>Sous-total</span>
-                    <span>{order.subtotal.toLocaleString("fr-FR")} FCFA</span>
+                    <span>
+                      {order.products
+                        .reduce(
+                          (acc, item) => acc + item.price * item.quantity,
+                          0
+                        )
+                        .toLocaleString("fr-FR")}{" "}
+                      FCFA
+                    </span>
                   </div>
                   <div className="flex justify-between text-gray-600 dark:text-gray-400">
                     <span>Livraison</span>
                     <span>
-                      {order.delivery_fee.toLocaleString("fr-FR")} FCFA
+                      {(
+                        order.total -
+                        order.products.reduce(
+                          (acc, item) => acc + item.price * item.quantity,
+                          0
+                        )
+                      ).toLocaleString("fr-FR")}{" "}
+                      FCFA
                     </span>
                   </div>
-                  {order.discount > 0 && (
-                    <div className="flex justify-between text-green-600 dark:text-green-400">
-                      <span>Réduction</span>
-                      <span>
-                        -{order.discount.toLocaleString("fr-FR")} FCFA
-                      </span>
-                    </div>
-                  )}
+
                   <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
                     <span className="font-bold text-lg text-gray-900 dark:text-white">
                       Total
@@ -407,7 +415,7 @@ export default function AdminOrderDetailsPage({
               </h2>
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center text-white font-bold text-lg">
-                  {order.user_email.charAt(0).toUpperCase()}
+                  {order.delivery_address.name.charAt(0).toUpperCase()}
                 </div>
                 <div>
                   <p className="font-semibold text-gray-900 dark:text-white">
@@ -415,7 +423,8 @@ export default function AdminOrderDetailsPage({
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-1">
                     <Mail size={12} />
-                    {order.user_email}
+                    {/* Email non disponible dans l'objet commande pour l'instant */}
+                    Client
                   </p>
                 </div>
               </div>

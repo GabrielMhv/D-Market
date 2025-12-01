@@ -33,7 +33,7 @@ export default function Home() {
           <div className="max-w-3xl">
             <FadeIn>
               <span className="inline-block px-4 py-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white text-sm font-medium mb-6">
-                Nouvelle Collection 2024
+                Nouvelle Collection 2025
               </span>
             </FadeIn>
             <FadeIn delay={0.2}>

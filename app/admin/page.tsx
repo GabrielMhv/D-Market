@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import StatsCard from "@/components/ui/StatsCard";
 import Timeline from "@/components/ui/Timeline";
@@ -19,6 +19,12 @@ import {
   Bell,
   Clock,
 } from "lucide-react";
+import {
+  getAllOrders,
+  getProducts,
+  getAllUsers,
+} from "@/lib/firebase/firestore";
+import { Order, Product, User } from "@/types";
 
 interface Stats {
   totalRevenue: number;
@@ -27,48 +33,177 @@ interface Stats {
   totalCustomers: number;
   pendingOrders: number;
   lowStockProducts: number;
+  revenueTrend: { value: string; isPositive: boolean } | null;
+  ordersTrend: { value: string; isPositive: boolean } | null;
+  customersTrend: { value: string; isPositive: boolean } | null;
 }
 
 export default function AdminDashboardPage() {
-  const [stats] = useState<Stats>({
-    totalRevenue: 2450000,
-    totalOrders: 156,
-    totalProducts: 45,
-    totalCustomers: 89,
-    pendingOrders: 12,
-    lowStockProducts: 5,
+  const [stats, setStats] = useState<Stats>({
+    totalRevenue: 0,
+    totalOrders: 0,
+    totalProducts: 0,
+    totalCustomers: 0,
+    pendingOrders: 0,
+    lowStockProducts: 0,
+    revenueTrend: null,
+    ordersTrend: null,
+    customersTrend: null,
   });
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const recentActivity = [
-    {
-      id: "1",
-      title: "Nouvelle commande #1056",
-      description: "Client: Marie Dupont - 25,000 FCFA",
-      timestamp: "Il y a 5 min",
-      color: "from-blue-500 to-blue-600",
-    },
-    {
-      id: "2",
-      title: "Produit ajouté",
-      description: "T-shirt Premium Noir - Taille M",
-      timestamp: "Il y a 15 min",
-      color: "from-green-500 to-green-600",
-    },
-    {
-      id: "3",
-      title: "Commande expédiée #1055",
-      description: "Client: Jean Martin - Livraison en cours",
-      timestamp: "Il y a 1h",
-      color: "from-purple-500 to-purple-600",
-    },
-    {
-      id: "4",
-      title: "Stock bas détecté",
-      description: "Casquette Sport - 3 unités restantes",
-      timestamp: "Il y a 2h",
-      color: "from-red-500 to-red-600",
-    },
-  ];
+  useEffect(() => {
+    async function loadDashboardData() {
+      try {
+        const [orders, products, users] = await Promise.all([
+          getAllOrders(),
+          getProducts(),
+          getAllUsers(),
+        ]);
+
+        // Calculate basic stats
+        const totalRevenue = orders.reduce(
+          (sum, order) => sum + order.total,
+          0
+        );
+        const pendingOrders = orders.filter(
+          (o) => o.status === "pending"
+        ).length;
+        const lowStockProducts = products.filter((p) => p.stock < 5).length;
+        const customers = users.filter((u) => u.role === "customer").length;
+
+        // Calculate trends
+        const now = new Date();
+        const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const lastMonthStart = new Date(
+          now.getFullYear(),
+          now.getMonth() - 1,
+          1
+        );
+        const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+
+        // Revenue Trend
+        const thisMonthRevenue = orders
+          .filter((o) => o.created_at && o.created_at >= thisMonthStart)
+          .reduce((sum, o) => sum + o.total, 0);
+        const lastMonthRevenue = orders
+          .filter(
+            (o) =>
+              o.created_at &&
+              o.created_at >= lastMonthStart &&
+              o.created_at <= lastMonthEnd
+          )
+          .reduce((sum, o) => sum + o.total, 0);
+
+        let revenueTrend = null;
+        if (lastMonthRevenue > 0) {
+          const percent =
+            ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100;
+          revenueTrend = {
+            value: `${percent > 0 ? "+" : ""}${percent.toFixed(0)}% ce mois`,
+            isPositive: percent >= 0,
+          };
+        } else if (thisMonthRevenue > 0) {
+          revenueTrend = { value: "+100% ce mois", isPositive: true };
+        }
+
+        // Orders Trend
+        const thisMonthOrders = orders.filter(
+          (o) => o.created_at && o.created_at >= thisMonthStart
+        ).length;
+        const lastMonthOrders = orders.filter(
+          (o) =>
+            o.created_at &&
+            o.created_at >= lastMonthStart &&
+            o.created_at <= lastMonthEnd
+        ).length;
+
+        let ordersTrend = null;
+        if (lastMonthOrders > 0) {
+          const percent =
+            ((thisMonthOrders - lastMonthOrders) / lastMonthOrders) * 100;
+          ordersTrend = {
+            value: `${percent > 0 ? "+" : ""}${percent.toFixed(0)}% ce mois`,
+            isPositive: percent >= 0,
+          };
+        } else if (thisMonthOrders > 0) {
+          ordersTrend = { value: "+100% ce mois", isPositive: true };
+        }
+
+        // Customers Trend
+        const thisMonthCustomers = users.filter(
+          (u) =>
+            u.role === "customer" &&
+            u.created_at &&
+            u.created_at >= thisMonthStart
+        ).length;
+        const lastMonthCustomers = users.filter(
+          (u) =>
+            u.role === "customer" &&
+            u.created_at &&
+            u.created_at >= lastMonthStart &&
+            u.created_at <= lastMonthEnd
+        ).length;
+
+        let customersTrend = null;
+        if (lastMonthCustomers > 0) {
+          const percent =
+            ((thisMonthCustomers - lastMonthCustomers) / lastMonthCustomers) *
+            100;
+          customersTrend = {
+            value: `${percent > 0 ? "+" : ""}${percent.toFixed(0)}% ce mois`,
+            isPositive: percent >= 0,
+          };
+        } else if (thisMonthCustomers > 0) {
+          customersTrend = { value: "+100% ce mois", isPositive: true };
+        }
+
+        setStats({
+          totalRevenue,
+          totalOrders: orders.length,
+          totalProducts: products.length,
+          totalCustomers: customers,
+          pendingOrders,
+          lowStockProducts,
+          revenueTrend,
+          ordersTrend,
+          customersTrend,
+        });
+
+        setRecentOrders(orders.slice(0, 5));
+      } catch (error) {
+        console.error("Erreur chargement dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboardData();
+  }, []);
+
+  const recentActivity = recentOrders.map((order) => ({
+    id: order.id,
+    title: `Nouvelle commande #${order.id.slice(0, 8)}`,
+    description: `Client: ${
+      order.delivery_address.name
+    } - ${order.total.toLocaleString("fr-FR")} FCFA`,
+    timestamp: order.created_at
+      ? new Date(order.created_at).toLocaleTimeString("fr-FR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })
+      : "",
+    color: "from-blue-500 to-blue-600",
+  }));
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="w-16 h-16 border-4 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -108,7 +243,7 @@ export default function AdminDashboardPage() {
           value={stats.totalRevenue.toLocaleString("fr-FR")}
           subtitle="FCFA"
           icon={DollarSign}
-          trend={{ value: "+12% ce mois", isPositive: true }}
+          trend={stats.revenueTrend || undefined}
           iconColor="text-green-600 dark:text-green-400"
           iconBgColor="bg-green-100 dark:bg-green-900/30"
         />
@@ -117,7 +252,7 @@ export default function AdminDashboardPage() {
           value={stats.totalOrders}
           subtitle={`${stats.pendingOrders} en attente`}
           icon={ShoppingCart}
-          trend={{ value: "+8% ce mois", isPositive: true }}
+          trend={stats.ordersTrend || undefined}
           iconColor="text-blue-600 dark:text-blue-400"
           iconBgColor="bg-blue-100 dark:bg-blue-900/30"
         />
@@ -134,7 +269,7 @@ export default function AdminDashboardPage() {
           value={stats.totalCustomers}
           subtitle="Inscrits"
           icon={Users}
-          trend={{ value: "+15% ce mois", isPositive: true }}
+          trend={stats.customersTrend || undefined}
           iconColor="text-pink-600 dark:text-pink-400"
           iconBgColor="bg-pink-100 dark:bg-pink-900/30"
         />
@@ -158,35 +293,38 @@ export default function AdminDashboardPage() {
               </Link>
             </div>
             <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 group"
+              {recentOrders.map((order) => (
+                <Link
+                  key={order.id}
+                  href={`/admin/commandes/${order.id}`}
+                  className="block"
                 >
-                  <div className="flex-1">
-                    <p className="font-semibold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                      Commande #{1000 + i}
-                    </p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Client {i} • Il y a {i}h
-                    </p>
-                  </div>
-                  <div className="text-right flex items-center gap-3">
-                    <div>
-                      <p className="font-bold text-gray-900 dark:text-white">
-                        {(15000 + i * 5000).toLocaleString("fr-FR")} FCFA
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 group">
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                        Commande #{order.id.slice(0, 8)}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
+                        {order.delivery_address.name} •{" "}
+                        {order.created_at
+                          ? new Date(order.created_at).toLocaleDateString(
+                              "fr-FR"
+                            )
+                          : ""}
                       </p>
                     </div>
-                    <StatusBadge
-                      variant={
-                        i === 1 ? "warning" : i === 2 ? "info" : "success"
-                      }
-                      pulse={i === 1}
-                    >
-                      {i === 1 ? "En attente" : i === 2 ? "En cours" : "Livrée"}
-                    </StatusBadge>
+                    <div className="text-right flex items-center gap-3">
+                      <div>
+                        <p className="font-bold text-gray-900 dark:text-white">
+                          {order.total.toLocaleString("fr-FR")} FCFA
+                        </p>
+                      </div>
+                      <StatusBadge variant="secondary" pulse={false}>
+                        {order.status}
+                      </StatusBadge>
+                    </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </Card>

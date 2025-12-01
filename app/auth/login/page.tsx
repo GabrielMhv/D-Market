@@ -28,7 +28,7 @@ export default function LoginPage() {
       if (user.role === "admin") {
         router.push("/admin");
       } else {
-        router.push("/");
+        router.push("/compte");
       }
     } catch (err: any) {
       setError(err.message || "Erreur lors de la connexion");

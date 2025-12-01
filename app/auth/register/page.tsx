@@ -75,13 +75,18 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      await signUp(
+      const user = await signUp(
         formData.email,
         formData.password,
         formData.name,
         formData.phone
       );
-      router.push("/");
+
+      if (user.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/compte");
+      }
     } catch (err: any) {
       setErrors({ general: err.message || "Erreur lors de l'inscription" });
     } finally {

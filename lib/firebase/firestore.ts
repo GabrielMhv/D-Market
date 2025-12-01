@@ -191,17 +191,37 @@ export async function deleteProduct(id: string): Promise<void> {
 // ========== COMMANDES ==========
 
 /**
- * Créer une commande
+ * Créer une nouvelle commande et décrémenter le stock
  */
-export async function createOrder(order: Omit<Order, "id">): Promise<string> {
+export async function createOrder(
+  orderData: Omit<Order, "id">
+): Promise<string> {
   try {
-    const orderData = {
-      ...order,
+    console.log("Creating order for user:", orderData.user_id);
+    // Décrementer le stock pour chaque produit
+    for (const item of orderData.products) {
+      const productRef = doc(db, "products", item.product_id);
+      const productDoc = await getDoc(productRef);
+
+      if (productDoc.exists()) {
+        const currentStock = productDoc.data().stock || 0;
+        const newStock = Math.max(0, currentStock - item.quantity);
+
+        await updateDoc(productRef, {
+          stock: newStock,
+          updated_at: Timestamp.now(),
+        });
+      }
+    }
+
+    // Créer la commande
+    const order = {
+      ...orderData,
       created_at: Timestamp.now(),
       updated_at: Timestamp.now(),
     };
 
-    const docRef = await addDoc(collection(db, "orders"), orderData);
+    const docRef = await addDoc(collection(db, "orders"), order);
     return docRef.id;
   } catch (error) {
     console.error("Erreur lors de la création de la commande:", error);
@@ -274,6 +294,34 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
     })) as Order[];
   } catch (error) {
     console.error("Erreur lors de la récupération des commandes:", error);
+    return [];
+  }
+}
+
+/**
+ * Récupérer les commandes d'un utilisateur
+ */
+export async function getOrdersByUser(userId: string): Promise<Order[]> {
+  try {
+    const ordersRef = collection(db, "orders");
+    const q = query(
+      ordersRef,
+      where("user_id", "==", userId),
+      orderBy("created_at", "desc")
+    );
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      created_at: doc.data().created_at?.toDate(),
+      updated_at: doc.data().updated_at?.toDate(),
+    })) as Order[];
+  } catch (error) {
+    console.error(
+      "Erreur lors de la récupération des commandes utilisateur:",
+      error
+    );
     return [];
   }
 }
@@ -365,5 +413,91 @@ export async function verifyCoupon(code: string): Promise<Coupon | null> {
   } catch (error) {
     console.error("Erreur lors de la vérification du coupon:", error);
     return null;
+  }
+}
+
+// ========== ADRESSES ==========
+
+/**
+ * Récupérer les adresses d'un utilisateur
+ */
+export async function getUserAddresses(userId: string): Promise<any[]> {
+  try {
+    const addressesRef = collection(db, "users", userId, "addresses");
+    const snapshot = await getDocs(addressesRef);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (error) {
+    console.error("Erreur lors de la récupération des adresses:", error);
+    return [];
+  }
+}
+
+/**
+ * Ajouter une adresse
+ */
+export async function addUserAddress(
+  userId: string,
+  address: any
+): Promise<string> {
+  try {
+    const addressesRef = collection(db, "users", userId, "addresses");
+
+    // Si c'est la première adresse, elle devient par défaut
+    const snapshot = await getDocs(addressesRef);
+    if (snapshot.empty) {
+      address.isDefault = true;
+    }
+
+    const docRef = await addDoc(addressesRef, address);
+    return docRef.id;
+  } catch (error) {
+    console.error("Erreur lors de l'ajout de l'adresse:", error);
+    throw error;
+  }
+}
+
+/**
+ * Supprimer une adresse
+ */
+export async function deleteUserAddress(
+  userId: string,
+  addressId: string
+): Promise<void> {
+  try {
+    await deleteDoc(doc(db, "users", userId, "addresses", addressId));
+  } catch (error) {
+    console.error("Erreur lors de la suppression de l'adresse:", error);
+    throw error;
+  }
+}
+
+/**
+ * Définir une adresse par défaut
+ */
+export async function setDefaultAddress(
+  userId: string,
+  addressId: string
+): Promise<void> {
+  try {
+    const addressesRef = collection(db, "users", userId, "addresses");
+    const snapshot = await getDocs(addressesRef);
+
+    const batch = (await import("firebase/firestore")).writeBatch(db);
+
+    snapshot.docs.forEach((doc) => {
+      batch.update(doc.ref, { isDefault: doc.id === addressId });
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error(
+      "Erreur lors de la mise à jour de l'adresse par défaut:",
+      error
+    );
+    throw error;
   }
 }

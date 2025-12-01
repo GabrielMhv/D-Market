@@ -9,20 +9,24 @@ import StatusBadge from "@/components/ui/StatusBadge";
 import Button from "@/components/ui/Button";
 import { FadeIn, StaggerContainer } from "@/components/ui/Motion";
 import {
-  Eye,
   Search,
   ShoppingCart,
-  Filter,
-  Calendar,
-  DollarSign,
+  Clock,
+  Package,
+  CheckCircle,
+  Printer,
+  Trash2,
 } from "lucide-react";
 import { motion } from "framer-motion";
+
+type DateFilter = "today" | "7days" | "30days";
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<DateFilter>("30days");
 
   useEffect(() => {
     fetchOrders();
@@ -39,41 +43,84 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch =
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.user_email.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus =
-      statusFilter === "all" || order.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const getFilteredOrders = () => {
+    let filtered = orders;
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "pending":
-        return (
-          <StatusBadge variant="warning" pulse>
-            En attente
-          </StatusBadge>
-        );
-      case "processing":
-        return <StatusBadge variant="info">En traitement</StatusBadge>;
-      case "shipped":
-        return <StatusBadge variant="primary">Expédiée</StatusBadge>;
-      case "delivered":
-        return <StatusBadge variant="success">Livrée</StatusBadge>;
-      case "cancelled":
-        return <StatusBadge variant="danger">Annulée</StatusBadge>;
-      default:
-        return <StatusBadge variant="secondary">{status}</StatusBadge>;
+    // Filter by search
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (order) =>
+          order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          order.delivery_address.name
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())
+      );
     }
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((order) => order.status === statusFilter);
+    }
+
+    // Filter by date
+    const now = new Date();
+    if (dateFilter === "today") {
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      filtered = filtered.filter(
+        (order) => order.created_at && order.created_at >= today
+      );
+    } else if (dateFilter === "7days") {
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter(
+        (order) => order.created_at && order.created_at >= sevenDaysAgo
+      );
+    } else if (dateFilter === "30days") {
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      filtered = filtered.filter(
+        (order) => order.created_at && order.created_at >= thirtyDaysAgo
+      );
+    }
+
+    return filtered.sort((a, b) => {
+      if (!a.created_at || !b.created_at) return 0;
+      return b.created_at.getTime() - a.created_at.getTime();
+    });
   };
+
+  const filteredOrders = getFilteredOrders();
 
   const stats = {
     total: orders.length,
     pending: orders.filter((o) => o.status === "pending").length,
     processing: orders.filter((o) => o.status === "processing").length,
     delivered: orders.filter((o) => o.status === "delivered").length,
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: "En attente",
+      processing: "En préparation",
+      shipped: "En livraison",
+      delivered: "Livré",
+      cancelled: "Annulé",
+    };
+    return labels[status] || status;
+  };
+
+  const getTimeAgo = (date: Date | null | undefined) => {
+    if (!date) return "";
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    const months = Math.floor(diff / 2592000000);
+
+    if (months > 0) return `Il y a ${months} mois`;
+    if (days > 0) return `Il y a ${days} jour${days > 1 ? "s" : ""}`;
+    if (hours > 0) return `Il y a ${hours} heure${hours > 1 ? "s" : ""}`;
+    if (minutes > 0) return `Il y a ${minutes} minute${minutes > 1 ? "s" : ""}`;
+    return "À l'instant";
   };
 
   if (loading) {
@@ -86,187 +133,305 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Search Bar */}
       <FadeIn>
-        <div>
-          <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent mb-2">
-            Commandes
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            {orders.length} commande{orders.length > 1 ? "s" : ""} au total
-          </p>
+        <div className="relative">
+          <Search
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+            size={20}
+          />
+          <input
+            type="text"
+            placeholder="Rechercher des commandes"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-12 pr-4 py-4 bg-gray-800/50 border border-gray-700 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
+          />
         </div>
       </FadeIn>
 
-      {/* Quick Stats */}
-      <StaggerContainer className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Stats Cards */}
+      <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-br from-blue-500/10 to-blue-600/10 border border-blue-500/20 rounded-2xl p-6"
         >
-          <div className="flex items-center justify-between mb-2">
-            <ShoppingCart size={20} />
-            <span className="text-2xl font-bold">{stats.total}</span>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-blue-500/20 rounded-lg">
+              <ShoppingCart className="text-blue-400" size={20} />
+            </div>
+            <span className="text-gray-400 text-sm">Total commandes</span>
           </div>
-          <p className="text-sm text-blue-100">Total</p>
+          <div className="text-3xl font-bold text-white">{stats.total}</div>
         </motion.div>
+
         <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl p-4 text-white"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/10 border border-yellow-500/20 rounded-2xl p-6"
         >
-          <div className="flex items-center justify-between mb-2">
-            <Calendar size={20} />
-            <span className="text-2xl font-bold">{stats.pending}</span>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-yellow-500/20 rounded-lg">
+              <Clock className="text-yellow-400" size={20} />
+            </div>
+            <span className="text-gray-400 text-sm">En attente</span>
           </div>
-          <p className="text-sm text-amber-100">En attente</p>
+          <div className="text-3xl font-bold text-white">{stats.pending}</div>
         </motion.div>
+
         <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-gradient-to-br from-purple-500/10 to-purple-600/10 border border-purple-500/20 rounded-2xl p-6"
         >
-          <div className="flex items-center justify-between mb-2">
-            <DollarSign size={20} />
-            <span className="text-2xl font-bold">{stats.processing}</span>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-purple-500/20 rounded-lg">
+              <Package className="text-purple-400" size={20} />
+            </div>
+            <span className="text-gray-400 text-sm">En préparation</span>
           </div>
-          <p className="text-sm text-purple-100">En cours</p>
+          <div className="text-3xl font-bold text-white">
+            {stats.processing}
+          </div>
         </motion.div>
+
         <motion.div
-          whileHover={{ scale: 1.02 }}
-          className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-gradient-to-br from-green-500/10 to-green-600/10 border border-green-500/20 rounded-2xl p-6"
         >
-          <div className="flex items-center justify-between mb-2">
-            <ShoppingCart size={20} />
-            <span className="text-2xl font-bold">{stats.delivered}</span>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="p-2 bg-green-500/20 rounded-lg">
+              <CheckCircle className="text-green-400" size={20} />
+            </div>
+            <span className="text-gray-400 text-sm">Livré</span>
           </div>
-          <p className="text-sm text-green-100">Livrées</p>
+          <div className="text-3xl font-bold text-white">{stats.delivered}</div>
         </motion.div>
       </StaggerContainer>
 
       {/* Filters */}
-      <FadeIn delay={0.2}>
-        <Card>
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                size={20}
-              />
-              <input
-                type="text"
-                placeholder="Rechercher par ID ou email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter size={20} className="text-gray-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-all"
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="pending">En attente</option>
-                <option value="processing">En traitement</option>
-                <option value="shipped">Expédiée</option>
-                <option value="delivered">Livrée</option>
-                <option value="cancelled">Annulée</option>
-              </select>
-            </div>
-          </div>
-        </Card>
-      </FadeIn>
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* Status Filters */}
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { value: "all", label: "Toutes les commandes" },
+            { value: "pending", label: "En attente" },
+            { value: "processing", label: "En préparation" },
+            { value: "delivered", label: "Livré" },
+            { value: "cancelled", label: "Annulé" },
+          ].map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => setStatusFilter(filter.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                statusFilter === filter.value
+                  ? "bg-primary-600 text-white"
+                  : "bg-gray-800/50 text-gray-400 hover:bg-gray-700/50"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
 
-      {/* Orders Table */}
-      <FadeIn delay={0.3}>
-        <Card>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200 dark:border-gray-700">
-                  <th className="text-left py-4 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    Commande
-                  </th>
-                  <th className="text-left py-4 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    Client
-                  </th>
-                  <th className="text-left py-4 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    Date
-                  </th>
-                  <th className="text-left py-4 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    Total
-                  </th>
-                  <th className="text-left py-4 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    Statut
-                  </th>
-                  <th className="text-right py-4 px-4 text-sm font-semibold text-gray-600 dark:text-gray-400">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-12">
-                      <ShoppingCart className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-                      <p className="text-gray-500 dark:text-gray-400">
-                        Aucune commande trouvée
-                      </p>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredOrders.map((order, index) => (
-                    <motion.tr
-                      key={order.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="border-b border-gray-100 dark:border-gray-800 last:border-0 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group"
-                    >
-                      <td className="py-4 px-4">
-                        <span className="font-mono font-medium text-gray-900 dark:text-white">
-                          #{order.id.slice(0, 8)}
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {order.user_email}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="py-4 px-4 text-gray-600 dark:text-gray-400">
-                        {order.created_at?.toLocaleDateString("fr-FR")}
-                      </td>
-                      <td className="py-4 px-4">
-                        <span className="font-bold text-gray-900 dark:text-white">
-                          {order.total.toLocaleString("fr-FR")} FCFA
-                        </span>
-                      </td>
-                      <td className="py-4 px-4">
-                        {getStatusBadge(order.status)}
-                      </td>
-                      <td className="py-4 px-4 text-right">
-                        <Link href={`/admin/commandes/${order.id}`}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Eye size={18} />
-                            Détails
-                          </Button>
-                        </Link>
-                      </td>
-                    </motion.tr>
-                  ))
+        {/* Date Filters */}
+        <div className="flex gap-2 ml-auto">
+          {[
+            { value: "today" as DateFilter, label: "Aujourd'hui" },
+            { value: "7days" as DateFilter, label: "7 derniers jours" },
+            { value: "30days" as DateFilter, label: "30 derniers jours" },
+          ].map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => setDateFilter(filter.value)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                dateFilter === filter.value
+                  ? "bg-gray-700 text-white"
+                  : "bg-gray-800/50 text-gray-400 hover:bg-gray-700/50"
+              }`}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Orders List */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {filteredOrders.map((order, index) => (
+          <motion.div
+            key={order.id}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.05 }}
+          >
+            <Card className="bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-gray-700/50 hover:border-primary-500/30 transition-all duration-300">
+              {/* Order Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-lg font-bold text-white">
+                      Commande #{order.id.slice(0, 8)}
+                    </h3>
+                    <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-md">
+                      📋{" "}
+                      {order.payment_method === "cash" ? "Table" : "Livraison"}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-400">
+                    {getTimeAgo(order.created_at)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <div className="text-xl font-bold text-white">
+                    {order.total.toLocaleString("fr-FR")} FCFA
+                  </div>
+                  <div className="text-sm text-gray-400">
+                    {order.products.length} article
+                    {order.products.length > 1 ? "s" : ""}
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Timeline */}
+              <div className="flex items-center justify-between mb-6 relative">
+                <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-700"></div>
+                {["pending", "processing", "delivered"].map((status, idx) => {
+                  const isActive =
+                    order.status === status ||
+                    (order.status === "delivered" && idx < 3) ||
+                    (order.status === "processing" && idx < 2);
+                  return (
+                    <div key={status} className="relative z-10 text-center">
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto mb-2 transition-all ${
+                          isActive
+                            ? "bg-primary-500 text-white"
+                            : "bg-gray-700 text-gray-400"
+                        }`}
+                      >
+                        {isActive ? "●" : "○"}
+                      </div>
+                      <div
+                        className={`text-xs ${
+                          isActive ? "text-primary-400" : "text-gray-500"
+                        }`}
+                      >
+                        {getStatusLabel(status)}
+                      </div>
+                      <div className="text-xs text-gray-600">
+                        {isActive && getTimeAgo(order.created_at)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Client Details */}
+              <div className="mb-4 p-4 bg-gray-800/50 rounded-lg">
+                <h4 className="text-sm font-semibold text-gray-400 mb-2">
+                  Détails Client
+                </h4>
+                <p className="text-white">{order.delivery_address.name}</p>
+                {order.delivery_address.phone && (
+                  <p className="text-sm text-gray-400">
+                    {order.delivery_address.phone}
+                  </p>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </Card>
-      </FadeIn>
+                <p className="text-sm text-gray-400">
+                  {order.delivery_address.address},{" "}
+                  {order.delivery_address.city}
+                </p>
+              </div>
+
+              {/* Payment Method */}
+              <div className="mb-4 p-4 bg-gray-800/50 rounded-lg">
+                <h4 className="text-sm font-semibold text-gray-400 mb-2">
+                  💳 Mode de paiement
+                </h4>
+                <p className="text-white">
+                  {order.payment_method === "cash"
+                    ? "Paiement à la caisse"
+                    : order.payment_method === "delivery"
+                    ? "Paiement à la livraison"
+                    : order.payment_method || "Non spécifié"}
+                </p>
+              </div>
+
+              {/* Products */}
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-400 mb-3">
+                  Produits commandés
+                </h4>
+                <div className="space-y-2">
+                  {order.products.map((item) => (
+                    <div
+                      key={item.product_id}
+                      className="flex justify-between items-center text-sm"
+                    >
+                      <span className="text-gray-300">
+                        {item.quantity}x {item.product_name}
+                      </span>
+                      <span className="text-white font-medium">
+                        {(item.price * item.quantity).toLocaleString("fr-FR")}{" "}
+                        FCFA
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-700">
+                  <div className="flex justify-between font-bold">
+                    <span className="text-white">Total</span>
+                    <span className="text-white">
+                      {order.total.toLocaleString("fr-FR")} FCFA
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2">
+                {order.status !== "delivered" &&
+                  order.status !== "cancelled" && (
+                    <Button
+                      variant="primary"
+                      className="flex-1 bg-primary-600 hover:bg-primary-700"
+                    >
+                      Marquer comme livré
+                    </Button>
+                  )}
+                {order.status !== "cancelled" && (
+                  <Button
+                    variant="danger"
+                    className="flex-1 bg-red-600/20 hover:bg-red-600/30 text-red-400 border-red-500/30"
+                  >
+                    <Trash2 size={16} />
+                    Annuler
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  className="bg-primary-600/20 hover:bg-primary-600/30 text-primary-400 border-primary-500/30"
+                >
+                  <Printer size={16} />
+                </Button>
+              </div>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
+      {filteredOrders.length === 0 && (
+        <div className="text-center py-12">
+          <ShoppingCart className="mx-auto text-gray-600 mb-4" size={48} />
+          <p className="text-gray-400">Aucune commande trouvée</p>
+        </div>
+      )}
     </div>
   );
 }
