@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { getAllOrders } from "@/lib/firebase/firestore";
+import {
+  getAllOrders,
+  updateOrderStatus,
+  cancelOrder,
+} from "@/lib/firebase/firestore";
 import { Order } from "@/types";
 import Card from "@/components/ui/Card";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -18,6 +22,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { motion } from "framer-motion";
+import { toast } from "react-hot-toast";
 
 type DateFilter = "today" | "7days" | "30days";
 
@@ -40,6 +45,41 @@ export default function AdminOrdersPage() {
       console.error("Erreur chargement commandes:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateStatus = async (
+    orderId: string,
+    newStatus: Order["status"]
+  ) => {
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      toast.success(`Commande marquée comme ${getStatusLabel(newStatus)}`);
+      // Refresh orders
+      fetchOrders();
+    } catch (error) {
+      console.error("Erreur mise à jour statut:", error);
+      toast.error("Erreur lors de la mise à jour");
+    }
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    if (
+      !confirm(
+        "Êtes-vous sûr de vouloir annuler cette commande ? Le stock sera restauré."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await cancelOrder(orderId);
+      toast.success("Commande annulée avec succès");
+      // Refresh orders
+      fetchOrders();
+    } catch (error) {
+      console.error("Erreur annulation:", error);
+      toast.error("Erreur lors de l'annulation");
     }
   };
 
@@ -401,6 +441,7 @@ export default function AdminOrdersPage() {
                     <Button
                       variant="primary"
                       className="flex-1 bg-primary-600 hover:bg-primary-700"
+                      onClick={() => handleUpdateStatus(order.id, "delivered")}
                     >
                       Marquer comme livré
                     </Button>
@@ -409,6 +450,7 @@ export default function AdminOrdersPage() {
                   <Button
                     variant="danger"
                     className="flex-1 bg-red-600/20 hover:bg-red-600/30 text-red-400 border-red-500/30"
+                    onClick={() => handleCancelOrder(order.id)}
                   >
                     <Trash2 size={16} />
                     Annuler
@@ -417,6 +459,7 @@ export default function AdminOrdersPage() {
                 <Button
                   variant="outline"
                   className="bg-primary-600/20 hover:bg-primary-600/30 text-primary-400 border-primary-500/30"
+                  onClick={() => window.print()}
                 >
                   <Printer size={16} />
                 </Button>
