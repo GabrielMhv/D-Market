@@ -119,7 +119,60 @@ export async function getUserData(uid: string): Promise<User | null> {
 /**
  * Vérifier si l'utilisateur est admin
  */
-export async function isAdmin(uid: string): Promise<boolean> {
-  const user = await getUserData(uid);
+export async function isAdmin(uid?: string): Promise<boolean> {
+  let targetUid = uid;
+
+  if (!targetUid) {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return false;
+    targetUid = currentUser.uid;
+  }
+
+  const user = await getUserData(targetUid);
   return user?.role === "admin";
+}
+
+/**
+ * Récupérer l'utilisateur actuellement connecté
+ */
+export async function getCurrentUser(): Promise<FirebaseUser | null> {
+  return auth.currentUser;
+}
+
+/**
+ * Mettre à jour le profil utilisateur
+ */
+export async function updateUserProfile(
+  uid: string,
+  data: { name?: string; phone?: string; email?: string }
+): Promise<void> {
+  try {
+    const currentUser = auth.currentUser;
+    if (currentUser && data.name) {
+      await updateProfile(currentUser, { displayName: data.name });
+    }
+
+    // Mise à jour Firestore
+    const userRef = doc(db, "users", uid);
+    await setDoc(userRef, data, { merge: true });
+  } catch (error: any) {
+    throw new Error(error.message || "Erreur lors de la mise à jour du profil");
+  }
+}
+
+/**
+ * Mettre à jour le mot de passe
+ */
+export async function updateUserPassword(password: string): Promise<void> {
+  try {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("Utilisateur non connecté");
+
+    const { updatePassword } = await import("firebase/auth");
+    await updatePassword(currentUser, password);
+  } catch (error: any) {
+    throw new Error(
+      error.message || "Erreur lors de la mise à jour du mot de passe"
+    );
+  }
 }

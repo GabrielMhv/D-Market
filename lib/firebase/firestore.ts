@@ -13,7 +13,29 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { db } from "./config";
-import { Product, Order, Cart, Coupon } from "@/types";
+import { Product, Order, Cart, Coupon, User } from "@/types";
+
+// ========== UTILISATEURS ==========
+
+/**
+ * Récupérer tous les utilisateurs (Admin)
+ */
+export async function getAllUsers(): Promise<User[]> {
+  try {
+    const usersRef = collection(db, "users");
+    const q = query(usersRef, orderBy("created_at", "desc"));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      created_at: doc.data().created_at?.toDate(),
+    })) as User[];
+  } catch (error) {
+    console.error("Erreur lors de la récupération des utilisateurs:", error);
+    return [];
+  }
+}
 
 // ========== PRODUITS ==========
 
@@ -169,20 +191,144 @@ export async function deleteProduct(id: string): Promise<void> {
 // ========== COMMANDES ==========
 
 /**
- * Créer une commande
+ * Créer une nouvelle commande et décrémenter le stock
  */
-export async function createOrder(order: Omit<Order, "id">): Promise<string> {
+export async function createOrder(
+  orderData: Omit<Order, "id">
+): Promise<string> {
   try {
-    const orderData = {
-      ...order,
+    console.log("Creating order for user:", orderData.user_id);
+    // Décrementer le stock pour chaque produit
+    for (const item of orderData.products) {
+      const productRef = doc(db, "products", item.product_id);
+      const productDoc = await getDoc(productRef);
+
+      if (productDoc.exists()) {
+        const currentStock = productDoc.data().stock || 0;
+        const newStock = Math.max(0, currentStock - item.quantity);
+
+        await updateDoc(productRef, {
+          stock: newStock,
+          updated_at: Timestamp.now(),
+        });
+      }
+    }
+
+    // Créer la commande
+    const order = {
+      ...orderData,
       created_at: Timestamp.now(),
       updated_at: Timestamp.now(),
     };
 
-    const docRef = await addDoc(collection(db, "orders"), orderData);
+    const docRef = await addDoc(collection(db, "orders"), order);
     return docRef.id;
   } catch (error) {
     console.error("Erreur lors de la création de la commande:", error);
+    throw error;
+  }
+}
+
+/**
+ * Récupérer toutes les commandes (Admin)
+ */
+export async function getAllOrders(): Promise<Order[]> {
+  try {
+    const ordersRef = collection(db, "orders");
+    const q = query(ordersRef, orderBy("created_at", "desc"));
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      created_at: doc.data().created_at?.toDate(),
+      updated_at: doc.data().updated_at?.toDate(),
+    })) as Order[];
+  } catch (error) {
+    console.error("Erreur lors de la récupération des commandes:", error);
+    return [];
+  }
+}
+
+/**
+ * Récupérer une commande par ID
+ */
+export async function getOrderById(id: string): Promise<Order | null> {
+  try {
+    const orderDoc = await getDoc(doc(db, "orders", id));
+
+    if (!orderDoc.exists()) {
+      return null;
+    }
+
+    return {
+      id: orderDoc.id,
+      ...orderDoc.data(),
+      created_at: orderDoc.data().created_at?.toDate(),
+      updated_at: orderDoc.data().updated_at?.toDate(),
+    } as Order;
+  } catch (error) {
+    console.error("Erreur lors de la récupération de la commande:", error);
+    return null;
+  }
+}
+
+/**
+ * Mettre à jour le statut d'une commande
+ */
+export async function updateOrderStatus(
+  orderId: string,
+  newStatus: Order["status"]
+): Promise<void> {
+  try {
+    const orderRef = doc(db, "orders", orderId);
+    await updateDoc(orderRef, {
+      status: newStatus,
+      updated_at: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error("Erreur lors de la mise à jour du statut:", error);
+    throw error;
+  }
+}
+
+/**
+ * Annuler une commande et restaurer le stock
+ */
+export async function cancelOrder(orderId: string): Promise<void> {
+  try {
+    // Récupérer la commande
+    const orderDoc = await getDoc(doc(db, "orders", orderId));
+
+    if (!orderDoc.exists()) {
+      throw new Error("Commande introuvable");
+    }
+
+    const orderData = orderDoc.data() as Order;
+
+    // Restaurer le stock pour chaque produit
+    for (const item of orderData.products) {
+      const productRef = doc(db, "products", item.product_id);
+      const productDoc = await getDoc(productRef);
+
+      if (productDoc.exists()) {
+        const currentStock = productDoc.data().stock || 0;
+        const newStock = currentStock + item.quantity;
+
+        await updateDoc(productRef, {
+          stock: newStock,
+          updated_at: Timestamp.now(),
+        });
+      }
+    }
+
+    // Mettre à jour le statut de la commande
+    await updateDoc(doc(db, "orders", orderId), {
+      status: "cancelled",
+      updated_at: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error("Erreur lors de l'annulation de la commande:", error);
     throw error;
   }
 }
@@ -213,21 +359,30 @@ export async function getUserOrders(userId: string): Promise<Order[]> {
 }
 
 /**
- * Mettre à jour le statut d'une commande (Admin)
+ * Récupérer les commandes d'un utilisateur
  */
-export async function updateOrderStatus(
-  orderId: string,
-  status: Order["status"]
-): Promise<void> {
+export async function getOrdersByUser(userId: string): Promise<Order[]> {
   try {
-    const orderRef = doc(db, "orders", orderId);
-    await updateDoc(orderRef, {
-      status,
-      updated_at: Timestamp.now(),
-    });
+    const ordersRef = collection(db, "orders");
+    const q = query(
+      ordersRef,
+      where("user_id", "==", userId),
+      orderBy("created_at", "desc")
+    );
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      created_at: doc.data().created_at?.toDate(),
+      updated_at: doc.data().updated_at?.toDate(),
+    })) as Order[];
   } catch (error) {
-    console.error("Erreur lors de la mise à jour du statut:", error);
-    throw error;
+    console.error(
+      "Erreur lors de la récupération des commandes utilisateur:",
+      error
+    );
+    return [];
   }
 }
 
@@ -299,5 +454,159 @@ export async function verifyCoupon(code: string): Promise<Coupon | null> {
   } catch (error) {
     console.error("Erreur lors de la vérification du coupon:", error);
     return null;
+  }
+}
+
+// ========== ADRESSES ==========
+
+/**
+ * Récupérer les adresses d'un utilisateur
+ */
+export async function getUserAddresses(userId: string): Promise<any[]> {
+  try {
+    const addressesRef = collection(db, "users", userId, "addresses");
+    const snapshot = await getDocs(addressesRef);
+
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  } catch (error) {
+    console.error("Erreur lors de la récupération des adresses:", error);
+    return [];
+  }
+}
+
+/**
+ * Ajouter une adresse
+ */
+export async function addUserAddress(
+  userId: string,
+  address: any
+): Promise<string> {
+  try {
+    const addressesRef = collection(db, "users", userId, "addresses");
+
+    // Si c'est la première adresse, elle devient par défaut
+    const snapshot = await getDocs(addressesRef);
+    if (snapshot.empty) {
+      address.isDefault = true;
+    }
+
+    const docRef = await addDoc(addressesRef, address);
+    return docRef.id;
+  } catch (error) {
+    console.error("Erreur lors de l'ajout de l'adresse:", error);
+    throw error;
+  }
+}
+
+/**
+ * Supprimer une adresse
+ */
+export async function deleteUserAddress(
+  userId: string,
+  addressId: string
+): Promise<void> {
+  try {
+    await deleteDoc(doc(db, "users", userId, "addresses", addressId));
+  } catch (error) {
+    console.error("Erreur lors de la suppression de l'adresse:", error);
+    throw error;
+  }
+}
+
+/**
+ * Définir une adresse par défaut
+ */
+export async function setDefaultAddress(
+  userId: string,
+  addressId: string
+): Promise<void> {
+  try {
+    const addressesRef = collection(db, "users", userId, "addresses");
+    const snapshot = await getDocs(addressesRef);
+
+    const batch = (await import("firebase/firestore")).writeBatch(db);
+
+    snapshot.docs.forEach((doc) => {
+      batch.update(doc.ref, { isDefault: doc.id === addressId });
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error(
+      "Erreur lors de la mise à jour de l'adresse par défaut:",
+      error
+    );
+    throw error;
+  }
+}
+
+// ========== COUPONS ==========
+
+/**
+ * Valider et récupérer un coupon par son code
+ */
+export async function validateCoupon(code: string): Promise<Coupon | null> {
+  try {
+    const couponsRef = collection(db, "coupons");
+    const q = query(couponsRef, where("code", "==", code.toUpperCase()));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      return null;
+    }
+
+    const couponData = snapshot.docs[0].data();
+    const coupon = {
+      id: snapshot.docs[0].id,
+      ...couponData,
+      expiration:
+        couponData.expiration?.toDate() || couponData.expiresAt?.toDate(),
+      usage_limit: couponData.usage_limit || couponData.usageLimit,
+      used_count: couponData.used_count || couponData.usedCount || 0,
+    } as Coupon;
+
+    // Vérifier si le coupon est actif
+    if (!coupon.active) {
+      return null;
+    }
+
+    // Vérifier si le coupon n'a pas expiré
+    if (coupon.expiration && coupon.expiration < new Date()) {
+      return null;
+    }
+
+    // Vérifier si le coupon n'a pas atteint sa limite d'utilisation
+    if (coupon.usage_limit && coupon.used_count >= coupon.usage_limit) {
+      return null;
+    }
+
+    return coupon;
+  } catch (error) {
+    console.error("Erreur lors de la validation du coupon:", error);
+    return null;
+  }
+}
+
+/**
+ * Incrémenter le compteur d'utilisation d'un coupon
+ */
+export async function incrementCouponUsage(couponId: string): Promise<void> {
+  try {
+    const couponRef = doc(db, "coupons", couponId);
+    const couponDoc = await getDoc(couponRef);
+
+    if (couponDoc.exists()) {
+      const currentCount =
+        couponDoc.data().used_count || couponDoc.data().usedCount || 0;
+      await updateDoc(couponRef, {
+        used_count: currentCount + 1,
+      });
+    }
+  } catch (error) {
+    console.error("Erreur lors de l'incrémentation du coupon:", error);
+    throw error;
   }
 }

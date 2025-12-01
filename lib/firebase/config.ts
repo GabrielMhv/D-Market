@@ -3,13 +3,15 @@ import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyC3zEZ8zi2KpB6NkBaoWsqOZeNNsAxkUm0",
+  authDomain: "d-aglo-market.firebaseapp.com",
+  projectId: "d-aglo-market",
+  storageBucket: "d-aglo-market.firebasestorage.app",
+  messagingSenderId: "950451804372",
+  appId: "1:950451804372:web:0d32f633d54c7562c2c341",
+  measurementId: "G-J0QZT22XT8",
 };
 
 // Initialize Firebase

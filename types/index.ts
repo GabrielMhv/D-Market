@@ -35,6 +35,11 @@ export interface DeliveryAddress {
   country: string;
 }
 
+export interface UserAddress extends DeliveryAddress {
+  id: string;
+  isDefault: boolean;
+}
+
 export type OrderStatus =
   | "pending"
   | "paid"
@@ -42,23 +47,17 @@ export type OrderStatus =
   | "shipped"
   | "delivered"
   | "cancelled";
-export type PaymentProvider = "mtn" | "moov" | "celtiis";
 
 export interface Order {
   id: string;
   user_id: string;
-  user_email: string;
   products: OrderItem[];
-  subtotal: number;
-  delivery_fee: number;
-  discount: number;
   total: number;
   status: OrderStatus;
-  payment_method: PaymentProvider;
-  payment_id?: string;
   delivery_address: DeliveryAddress;
-  created_at: Date;
-  updated_at: Date;
+  payment_method?: string;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 // Types pour les utilisateurs
@@ -100,34 +99,4 @@ export interface Coupon {
   active: boolean;
   usage_limit?: number;
   used_count: number;
-}
-
-// Types pour FedaPay
-export interface FedaPayTransaction {
-  id: string;
-  amount: number;
-  currency: "XOF";
-  description: string;
-  customer: {
-    firstname?: string;
-    lastname?: string;
-    email?: string;
-    phone_number: {
-      number: string;
-      country: string;
-    };
-  };
-  callback_url: string;
-  status: "pending" | "approved" | "declined" | "cancelled";
-}
-
-export interface FedaPayWebhook {
-  event: string;
-  entity: {
-    id: number;
-    amount: number;
-    status: string;
-    customer: any;
-    transaction: any;
-  };
 }

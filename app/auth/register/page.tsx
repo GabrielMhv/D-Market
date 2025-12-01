@@ -7,7 +7,18 @@ import { signUp } from "@/lib/firebase/auth";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
-import { UserPlus, Mail, Lock, User, Phone } from "lucide-react";
+import { FadeIn } from "@/components/ui/Motion";
+import {
+  UserPlus,
+  Mail,
+  Lock,
+  User,
+  Phone,
+  ArrowRight,
+  Sparkles,
+  Check,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -64,13 +75,18 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      await signUp(
+      const user = await signUp(
         formData.email,
         formData.password,
         formData.name,
         formData.phone
       );
-      router.push("/compte");
+
+      if (user.role === "admin") {
+        router.push("/admin");
+      } else {
+        router.push("/compte");
+      }
     } catch (err: any) {
       setErrors({ general: err.message || "Erreur lors de l'inscription" });
     } finally {
@@ -78,39 +94,97 @@ export default function RegisterPage() {
     }
   };
 
+  const passwordStrength =
+    formData.password.length >= 8
+      ? "Fort"
+      : formData.password.length >= 6
+      ? "Moyen"
+      : "Faible";
+  const passwordColor =
+    formData.password.length >= 8
+      ? "text-green-600"
+      : formData.password.length >= 6
+      ? "text-yellow-600"
+      : "text-red-600";
+
   return (
-    <main className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-purple-900 dark:to-blue-900 flex items-center justify-center py-12 px-4">
-      <div className="w-full max-w-md">
+    <main className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-blue-900/20 dark:to-purple-900/20 flex items-center justify-center py-12 px-4 relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{
+            scale: [1, 1.2, 1],
+            rotate: [0, 90, 0],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          className="absolute top-1/4 -left-1/4 w-96 h-96 bg-gradient-to-br from-green-400/20 to-blue-400/20 rounded-full blur-3xl"
+        />
+        <motion.div
+          animate={{
+            scale: [1, 1.3, 1],
+            rotate: [0, -90, 0],
+          }}
+          transition={{
+            duration: 25,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          className="absolute bottom-1/4 -right-1/4 w-96 h-96 bg-gradient-to-br from-purple-400/20 to-blue-400/20 rounded-full blur-3xl"
+        />
+      </div>
+
+      <FadeIn className="w-full max-w-md relative z-10">
         {/* Logo/Title */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-display font-bold gradient-text mb-2">
-            E-Shop
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 200, delay: 0.1 }}
+            className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-blue-600 rounded-2xl mb-4 shadow-lg"
+          >
+            <Sparkles className="text-white" size={32} />
+          </motion.div>
+          <h1 className="text-4xl font-display font-bold bg-gradient-to-r from-gray-900 via-blue-900 to-purple-900 dark:from-white dark:via-blue-200 dark:to-purple-200 bg-clip-text text-transparent mb-2">
+            Créer un compte
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Créez votre compte gratuitement
+            Rejoignez-nous en quelques secondes
           </p>
         </div>
 
         {/* Register Card */}
-        <Card className="glass">
-          <div className="flex items-center gap-2 mb-6">
-            <UserPlus
-              className="text-primary-600 dark:text-primary-400"
-              size={24}
-            />
+        <Card className="backdrop-blur-xl bg-white/80 dark:bg-gray-900/80 border-white/20 shadow-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+              <UserPlus
+                className="text-green-600 dark:text-green-400"
+                size={24}
+              />
+            </div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
               Inscription
             </h2>
           </div>
 
           {/* Error Message */}
-          {errors.general && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-600 dark:text-red-400">
-                {errors.general}
-              </p>
-            </div>
-          )}
+          <AnimatePresence>
+            {errors.general && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
+              >
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {errors.general}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -121,8 +195,8 @@ export default function RegisterPage() {
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
               }
-              error={errors.name}
               placeholder="Jean Dupont"
+              error={errors.name}
               required
             />
 
@@ -133,8 +207,8 @@ export default function RegisterPage() {
               onChange={(e) =>
                 setFormData({ ...formData, email: e.target.value })
               }
+              placeholder="jean@exemple.com"
               error={errors.email}
-              placeholder="votre@email.com"
               required
             />
 
@@ -145,23 +219,32 @@ export default function RegisterPage() {
               onChange={(e) =>
                 setFormData({ ...formData, phone: e.target.value })
               }
+              placeholder="+229 XX XX XX XX"
               error={errors.phone}
-              placeholder="97123456"
-              helperText="Utile pour les notifications de commande"
             />
 
-            <Input
-              label="Mot de passe"
-              type="password"
-              value={formData.password}
-              onChange={(e) =>
-                setFormData({ ...formData, password: e.target.value })
-              }
-              error={errors.password}
-              placeholder="••••••••"
-              helperText="Minimum 6 caractères"
-              required
-            />
+            <div>
+              <Input
+                label="Mot de passe"
+                type="password"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                placeholder="••••••••"
+                error={errors.password}
+                required
+              />
+              {formData.password && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className={`text-xs mt-1 ${passwordColor}`}
+                >
+                  Force : {passwordStrength}
+                </motion.p>
+              )}
+            </div>
 
             <Input
               label="Confirmer le mot de passe"
@@ -170,58 +253,41 @@ export default function RegisterPage() {
               onChange={(e) =>
                 setFormData({ ...formData, confirmPassword: e.target.value })
               }
-              error={errors.confirmPassword}
               placeholder="••••••••"
+              error={errors.confirmPassword}
               required
             />
-
-            {/* Terms */}
-            <div className="text-xs text-gray-600 dark:text-gray-400">
-              En créant un compte, vous acceptez nos{" "}
-              <Link
-                href="/cgv"
-                className="text-primary-600 dark:text-primary-400 hover:underline"
-              >
-                Conditions Générales de Vente
-              </Link>{" "}
-              et notre{" "}
-              <Link
-                href="/politique-confidentialite"
-                className="text-primary-600 dark:text-primary-400 hover:underline"
-              >
-                Politique de Confidentialité
-              </Link>
-              .
-            </div>
 
             {/* Submit Button */}
             <Button
               type="submit"
-              variant="primary"
-              size="lg"
-              className="w-full gap-2"
+              className="w-full gap-2 group"
               isLoading={isLoading}
+              size="lg"
             >
-              <UserPlus size={20} />
-              Créer mon compte
+              <span>Créer mon compte</span>
+              <ArrowRight
+                size={20}
+                className="group-hover:translate-x-1 transition-transform"
+              />
             </Button>
           </form>
 
           {/* Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
+              <div className="w-full border-t border-gray-200 dark:border-gray-700"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                Déjà un compte ?
+              <span className="px-4 bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+                Déjà inscrit ?
               </span>
             </div>
           </div>
 
           {/* Login Link */}
           <Link href="/auth/login">
-            <Button variant="outline" size="lg" className="w-full">
+            <Button variant="outline" className="w-full" size="lg">
               Se connecter
             </Button>
           </Link>
@@ -231,12 +297,12 @@ export default function RegisterPage() {
         <div className="text-center mt-6">
           <Link
             href="/"
-            className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400"
+            className="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
           >
             ← Retour à l'accueil
           </Link>
         </div>
-      </div>
+      </FadeIn>
     </main>
   );
 }

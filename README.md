@@ -1,135 +1,170 @@
-# 🛍️ Site E-Commerce Bénin
+# E-Shop Bénin - Site E-Commerce Moderne
 
-Site e-commerce moderne pour la vente de vêtements et accessoires au Bénin, avec paiement mobile money (MTN, Moov, Celtiis).
+Site e-commerce complet pour la vente de vêtements et accessoires au Bénin, avec paiement mobile money (MTN, Moov, Celtiis) via FedaPay.
 
-## 🚀 Technologies
+## 🚀 Fonctionnalités
 
-- **Frontend**: Next.js 14, TypeScript, Tailwind CSS
-- **Backend**: Firebase (Auth, Firestore, Storage, Cloud Functions)
-- **Paiement**: FedaPay (MTN, Moov, Celtiis)
-- **UI**: Framer Motion, Lucide React
-- **Monnaie**: Franc CFA (XOF)
+- ✅ Boutique avec filtres avancés (catégorie, prix, taille, couleur)
+- ✅ Fiches produits détaillées avec galerie images
+- ✅ Panier intelligent avec sauvegarde automatique
+- ✅ Paiement mobile money (MTN, Moov, Celtiis) via FedaPay
+- ✅ Authentification sécurisée (Firebase Auth)
+- ✅ Dashboard admin avec statistiques
+- ✅ Emails automatiques (confirmation, statut)
+- ✅ Design premium responsive (glassmorphism, dark mode)
 
-## 📦 Installation
+## 📊 Technologies
+
+- **Frontend** : Next.js 14, React, TypeScript, Tailwind CSS
+- **Backend** : Firebase (Auth, Firestore, Storage, Functions)
+- **Paiement** : FedaPay (agrégateur mobile money Bénin)
+- **Emails** : Nodemailer + Cloud Functions
+- **Animations** : Framer Motion
+
+## 🛠️ Installation
 
 ```bash
+# Cloner le projet
+git clone [votre-repo]
+cd Site\ E-com
+
 # Installer les dépendances
 npm install
 
-# Copier le fichier d'environnement
+# Configurer les variables d'environnement
 cp .env.example .env.local
+# Éditer .env.local avec vos clés Firebase et FedaPay
 
-# Configurer les variables d'environnement dans .env.local
-```
-
-## ⚙️ Configuration
-
-### Firebase
-
-1. Créer un projet sur [Firebase Console](https://console.firebase.google.com/)
-2. Activer Authentication, Firestore, Storage
-3. Copier les clés de configuration dans `.env.local`
-
-### FedaPay
-
-1. Créer un compte sur [FedaPay](https://fedapay.com/)
-2. Récupérer les clés API (Public Key et Secret Key)
-3. Ajouter les clés dans `.env.local`
-
-## 🏃 Développement
-
-```bash
 # Démarrer le serveur de développement
 npm run dev
+```
 
-# Vérifier les types TypeScript
-npm run type-check
+Le site sera accessible sur http://localhost:3000
 
-# Build de production
+## 🔧 Configuration
+
+### 1. Firebase
+
+1. Créer un projet sur [Firebase Console](https://console.firebase.google.com/)
+2. Activer Authentication (Email/Password)
+3. Créer une base Firestore
+4. Activer Storage
+5. Copier les clés dans `.env.local`
+
+### 2. Règles de Sécurité
+
+```bash
+# Déployer les règles Firestore et Storage
+firebase login
+firebase init
+firebase deploy --only firestore:rules,storage:rules
+```
+
+### 3. Cloud Functions
+
+```bash
+# Installer les dépendances
+cd functions
+npm install
+
+# Configurer les variables
+firebase functions:config:set email.user="votre-email@gmail.com"
+firebase functions:config:set email.password="mot-de-passe-app"
+firebase functions:config:set fedapay.webhook_secret="votre-secret"
+
+# Déployer
 npm run build
-
-# Démarrer en production
-npm start
+firebase deploy --only functions
 ```
 
-Le site sera accessible sur [http://localhost:3000](http://localhost:3000)
+### 4. FedaPay
 
-## 📁 Structure du Projet
+1. Créer un compte sur [FedaPay](https://fedapay.com/)
+2. Récupérer les clés API (sandbox pour tests)
+3. Configurer le webhook :
+   ```
+   https://us-central1-[project-id].cloudfunctions.net/fedapayWebhook
+   ```
+4. Ajouter les clés dans `.env.local`
+
+## 📁 Structure
 
 ```
-├── app/                    # Pages Next.js (App Router)
-│   ├── layout.tsx         # Layout racine
-│   ├── page.tsx           # Page d'accueil
-│   ├── globals.css        # Styles globaux
-│   ├── boutique/          # Pages boutique
-│   ├── produit/           # Pages produits
-│   ├── auth/              # Authentification
-│   ├── admin/             # Interface admin
-│   └── api/               # API Routes
-├── components/            # Composants réutilisables
-│   ├── ui/               # Composants UI de base
-│   ├── layout/           # Header, Footer
-│   ├── products/         # Composants produits
-│   └── cart/             # Composants panier
-├── lib/                  # Bibliothèques et utilitaires
-│   └── firebase/         # Configuration Firebase
-├── types/                # Types TypeScript
-├── hooks/                # Hooks React personnalisés
-└── utils/                # Fonctions utilitaires
+app/              # Pages Next.js (App Router)
+components/       # Composants React réutilisables
+lib/              # Services (Firebase, FedaPay)
+functions/        # Cloud Functions
+types/            # Types TypeScript
+public/           # Assets statiques
 ```
 
-## 🎨 Design System
+## 🔐 Sécurité
 
-Le site utilise un design moderne avec :
+- ✅ Règles Firestore pour protection des données
+- ✅ Règles Storage pour validation des uploads
+- ✅ Validation côté client et serveur
+- ✅ Authentification Firebase sécurisée
+- ✅ Paiements HTTPS via FedaPay
 
-- **Glassmorphism** : Effets de verre translucide
-- **Gradients vibrants** : Couleurs dynamiques
-- **Animations fluides** : Transitions et micro-interactions
-- **Dark mode** : Support du mode sombre
-- **Responsive** : Mobile-first design
+## 📧 Emails Automatiques
 
-## 💳 Paiement Mobile Money
+- Confirmation de commande
+- Changement de statut (payée, en préparation, expédiée, livrée)
+- Templates HTML professionnels
 
-Support des opérateurs béninois :
+## 🎨 Design
 
-- **MTN Mobile Money** : Préfixe 01
-- **Moov Money** : Préfixe 01
-- **Celtiis Cash** : Préfixe 01
+- Design premium avec glassmorphism
+- Dark mode complet
+- Animations fluides (Framer Motion)
+- Responsive mobile-first
+- Google Fonts (Inter, Outfit)
 
-Intégration via FedaPay pour une expérience de paiement unifiée.
+## 📱 Paiement Mobile Money
 
-## 📝 Fonctionnalités
+Support complet des opérateurs béninois :
 
-### Public
+- **MTN Mobile Money**
+- **Moov Money**
+- **Celtiis Cash**
 
-- ✅ Catalogue de produits avec filtres
-- ✅ Fiche produit détaillée
-- ✅ Panier persistant
-- ✅ Paiement mobile money
-- ✅ Suivi de commande
-- ✅ Authentification utilisateur
+Intégration via FedaPay pour une expérience unifiée.
 
-### Admin
+## 🚀 Déploiement
 
-- ✅ Dashboard avec statistiques
-- ✅ Gestion des produits
-- ✅ Gestion des commandes
-- ✅ Gestion des clients
-- ✅ Gestion des coupons
-- ✅ Configuration du site
+### Vercel (Recommandé)
 
-## 🔒 Sécurité
+```bash
+npm install -g vercel
+vercel --prod
+```
 
-- Règles de sécurité Firestore
-- Validation des entrées
-- Rate limiting sur Cloud Functions
-- Validation des webhooks FedaPay
-- Protection des routes admin
+### Firebase Hosting
 
-## 📄 License
+```bash
+npm run build
+firebase deploy --only hosting
+```
 
-ISC
+## 📚 Documentation
 
-## 👨‍💻 Développement
+- [Guide de Sécurité](./SECURITY_RULES_GUIDE.md)
+- [Guide Cloud Functions](./functions/DEPLOYMENT_GUIDE.md)
+- [Récapitulatif Projet](./PROJET_FINAL.md)
 
-Projet en cours de développement.
+## 🤝 Contribution
+
+Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou une pull request.
+
+## 📄 Licence
+
+MIT
+
+## 👨‍💻 Auteur
+
+Développé pour le marché béninois avec ❤️
+
+---
+
+**Statut** : 90% complet - Prêt pour le déploiement
+**Version** : 1.0.0
